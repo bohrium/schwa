@@ -137,18 +137,44 @@ class ParserGenerator:
 
 
 grammar = """
-    EXPRESSION = TERM ( WHITE "+" WHITE TERM | EMPTY )
-    TERM = FACTOR ( WHITE "*" WHITE FACTOR | EMPTY )
-    FACTOR = IDENTIFIER WHITE | WHITE "(" WHITE EXPRESSION WHITE ")" WHITE
+    MAIN = W PROGRAM W
+    PROGRAM = STATEMENT W (";" W PROGRAM | EMPTY )
+
+    STATEMENT = ( "do" W DOLOOP ) | ( "if" W IFLOOP )  | "skip" | "abort" | ASSIGNMENT
+    IFLOOP = GUARD W PROGRAM W ( "fi" | IFLOOP )
+    DOLOOP = GUARD W PROGRAM W ( "od" | DOLOOP )
+    GUARD = LOGICEXPR W ":" 
+    ASSIGNMENT = IDENTIFIER W "=" W ARITHEXPR 
+
+    LOGICEXPR = LOGICTERM W ( ( "or" ) W LOGICEXPR | EMPTY )
+    LOGICTERM = LOGICFACTOR W ( ( "and" ) W LOGICTERM | EMPTY )
+    LOGICFACTOR = "not" W LOGICFACTOR | "(" W LOGICEXPR W ")" | ARITHEXPR W ( "==" | "!=" | "<=" | "<" | ">=" | ">" ) W ARITHEXPR
+
+    ARITHEXPR = ARITHTERM W ( ( "+" | "-" ) W ARITHEXPR | EMPTY )
+    ARITHTERM = "-" ARITHTERM | ARITHFACTOR W ( ( "*" | "/" ) W ARITHTERM | EMPTY )
+    ARITHFACTOR = "(" W ARITHEXPR W ")" | IDENTIFIER
+
     IDENTIFIER = IDENTIFIERLOOP
     IDENTIFIERLOOP* = ALPHA ( IDENTIFIERLOOP | EMPTY )
     ALPHA* = "a" | "b" | "c" | "d" | "e" | "f" | "g" | "h" | "i" | "j" | "k" | "l" | "m" | "n" | "o" | "p" | "q" | "r" | "s" | "t" | "u" | "v" | "w" | "x" | "y" | "z" | "_" 
+    W* = WHITE
     WHITE* = " " WHITE | EMPTY
     EMPTY* = ""
 """
 
 PG = ParserGenerator(grammar)
-P = PG.parsers['EXPRESSION']
-text = 'foofoo*(bar+bar)+bar* bar'
+P = PG.parsers['MAIN']
+text = """
+    area = pi * radius*radius;
+    perimiter = two * (length   + width);
+    flag = okay; 
+    if
+        area < perimiter: do area < perimiter : area = area + one od ; abort 
+        perimiter < area: flag = -okay
+    fi;
+    skip; 
+"""
+text = ' '.join(text.split())
+print(text)
 PT = P(Text(text))
 PT.display()
