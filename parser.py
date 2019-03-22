@@ -5,10 +5,11 @@
 '''
 
 class ParseTree:
-    def __init__(self, label='ROOT', kids=[], ignore=False):
+    def __init__(self, label='ROOT', kids=[], ignore=False, unroll=False):
         self.label = label
         self.kids = kids
         self.ignore = ignore 
+        self.unroll = unroll 
 
     def get_source(self):
         return ''.join(k if type(k)==type('') else k.get_source() for k in self.kids)
@@ -19,7 +20,7 @@ class ParseTree:
     def display(self, depth=0, delim='   :', collapse=True):
         if self.ignore:
             return
-        if not collapse or self.width()!=1:
+        if not self.unroll and (not collapse or self.width()!=1):
             print(delim*depth + '\033[34m' + self.label + '\033[37m' + '[\033[33m' + self.get_source() + '\033[37m]')
             depth += 1
         for k in self.kids:
@@ -54,12 +55,17 @@ class ParserGenerator:
     def __init__(self, specs, verbose=False):
         self.rules_by_symbol = {}
         self.ignore = set([])
+        self.unroll = set([])
         for r in filter(None, specs.split('\n')):
             split_index = r.find('=') 
             symbol, rule = r[:split_index].strip(), r[split_index+1:].strip()
             if symbol[-1]=='*':
                 symbol = symbol[:-1]
                 self.ignore.add(symbol)
+            elif symbol[-1]=='!':
+                symbol = symbol[:-1]
+                self.unroll.add(symbol)
+
             self.rules_by_symbol[symbol] = rule
 
         if verbose:
@@ -69,7 +75,7 @@ class ParserGenerator:
         self.get_parser = lambda symbol: ( lambda text: self.parsers[symbol](text) )
 
         for symbol, rule in self.rules_by_symbol.items():
-            self.parsers[symbol] = self.build_labeled(symbol, self.parser_from_disjunction(Text(rule)), symbol in self.ignore)
+            self.parsers[symbol] = self.build_labeled(symbol, self.parser_from_disjunction(Text(rule)), symbol in self.ignore, symbol in self.unroll)
 
     def parser_from_disjunction(self, rule):
         subparsers = []
@@ -102,11 +108,11 @@ class ParserGenerator:
 
         return self.build_sequence(subparsers) 
 
-    def build_labeled(self, label, subparser, ignore):
+    def build_labeled(self, label, subparser, ignore, unroll):
         def labeledp(text):
             kids = subparser(text)
             if not kids: return False
-            return ParseTree(label, kids, ignore) 
+            return ParseTree(label, kids, ignore, unroll) 
         return labeledp
 
     def build_disjunction(self, subparsers):
@@ -138,20 +144,20 @@ class ParserGenerator:
 
 grammar = """
     MAIN = W PROGRAM W
-    PROGRAM = STATEMENT W (";" W PROGRAM | EMPTY )
+    PROGRAM! = STATEMENT W (";" W PROGRAM | EMPTY )
 
     STATEMENT = ( "do" W DOLOOP ) | ( "if" W IFLOOP )  | "skip" | "abort" | ASSIGNMENT
-    IFLOOP = GUARD W PROGRAM W ( "fi" | IFLOOP )
-    DOLOOP = GUARD W PROGRAM W ( "od" | DOLOOP )
+    IFLOOP! = GUARD W PROGRAM W ( "fi" | IFLOOP )
+    DOLOOP! = GUARD W PROGRAM W ( "od" | DOLOOP )
     GUARD = LOGICEXPR W ":" 
     ASSIGNMENT = IDENTIFIER W "=" W ARITHEXPR 
 
-    LOGICEXPR = LOGICTERM W ( ( "or" ) W LOGICEXPR | EMPTY )
-    LOGICTERM = LOGICFACTOR W ( ( "and" ) W LOGICTERM | EMPTY )
+    LOGICEXPR! = LOGICTERM W ( "or" W LOGICEXPR | EMPTY )
+    LOGICTERM! = LOGICFACTOR W ( "and" W LOGICTERM | EMPTY )
     LOGICFACTOR = "not" W LOGICFACTOR | "(" W LOGICEXPR W ")" | ARITHEXPR W ( "==" | "!=" | "<=" | "<" | ">=" | ">" ) W ARITHEXPR
 
-    ARITHEXPR = ARITHTERM W ( ( "+" | "-" ) W ARITHEXPR | EMPTY )
-    ARITHTERM = "-" ARITHTERM | ARITHFACTOR W ( ( "*" | "/" ) W ARITHTERM | EMPTY )
+    ARITHEXPR! = ARITHTERM W ( ( "+" | "-" ) W ARITHEXPR | EMPTY )
+    ARITHTERM! = "-" ARITHTERM | ARITHFACTOR W ( ( "*" | "/" ) W ARITHTERM | EMPTY )
     ARITHFACTOR = "(" W ARITHEXPR W ")" | IDENTIFIER
 
     IDENTIFIER = IDENTIFIERLOOP
