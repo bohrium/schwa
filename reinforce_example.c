@@ -9,10 +9,10 @@
 #include <math.h>
 
 #define SEED 0
-#define NB_TRIALS 30000
+#define NB_TRIALS 100000
 
-static float input[2];
-static float weight_u[4][2];    
+static float input[3];
+static float weight_u[4][3];    
 static float active_h[4];       static float dlossd_h[4];
 static float active_z[4];       static float dlossd_z[4];
 static float weight_v[2][4];    
@@ -34,52 +34,19 @@ void main()
 {
         salutation();
 
+        float reward_avg = 0.5;
         for (int t=0; t!=NB_TRIALS; ++t) {
                 input[0] = uniform();
                 input[1] = uniform();
+                input[2] = 1.0;
                 forward();
-                reward = ((input[0] < input[1] && sample==1) || (input[1] < input[0] && sample==0)) ? 1.0 : -1.0;
-                backward(0.01, 0.0);
+                reward = ((input[0] < input[1] && sample==1) || (input[1] <= input[0] && sample==0)) ? 1.0 : 0.0;
+                backward(0.01, 0.5);
 
-                if (t%1000 == 0) {
-                    printf("reward %f", reward);
+                reward_avg = reward_avg + (reward - reward_avg)/10000.0; 
+                if (t%10000 == 0) {
+                    printf("reward avg %0.2f", reward_avg);
                     printf("\n");
-                    //for (int i=0; i!=4; ++i) {
-                    //        printf("[ ");
-                    //        for (int j=0; j!=2; ++j) {
-                    //                printf("%+.2f ", weight_u[i][j]);
-                    //        }
-                    //        printf("]\n");
-                    //}
-                    //printf("\n");
-                    //for (int i=0; i!=2; ++i) {
-                    //        printf("[ ");
-                    //        for (int j=0; j!=4; ++j) {
-                    //                printf("%+.2f ", weight_v[i][j]);
-                    //        }
-                    //        printf("]\n");
-                    //}
-                    //printf("[ ");
-                    //for (int i=0; i!=2; ++i) {
-                    //        printf("%+.2f ", active_exphh[i]/partition);
-                    //}
-                    //printf(" ]\n");
-
-                    //printf("[ ");
-                    //for (int i=0; i!=2; ++i) {
-                    //        printf("%+.2f ", reward * active_exphh[i] / partition);
-                    //}
-                    //printf(" ]\n");
-
-                    //printf("[ ");
-                    //for (int i=0; i!=2; ++i) {
-                    //        printf("%+.6f ", dlossd_hh[i]);
-                    //}
-                    //printf(" ]\n");
-
-                    //printf("\n");
-                    //printf("\n");
-                    //printf("\n");
                 }
         }
 
@@ -108,7 +75,7 @@ float laplace()
 void initialize_weights()
 {
         for (int i=0; i!=4; ++i) {
-                for (int j=0; j!=2; ++j) {
+                for (int j=0; j!=3; ++j) {
                         weight_u[i][j] = 0.1 * laplace();
                 }
         }
@@ -126,12 +93,16 @@ float dlrelu(float h)
 {
         return (h<0 ? 0.2 : 1.0);
 }
+float clip5(float w)
+{
+        return (w<-5.0) ? -5.0 : (w>5.0) ? 5.0 : w;
+}
 void forward()
 {
         int i, j;
         for (i=0; i!=4; ++i) {
                 active_h[i] = 0.0;
-                for (j=0; j!=2; ++j) {
+                for (j=0; j!=3; ++j) {
                         active_h[i] += weight_u[i][j] * input[j]; 
                 }
                 active_z[i] = lrelu(active_h[i]); 
@@ -171,13 +142,15 @@ void backward(float learning_rate, float baseline)
                 for (i=0; i!=2; ++i) {
                         dlossd_z[j] += weight_v[i][j] * dlossd_hh[i];
                         weight_v[i][j] += learning_rate * dlossd_hh[i] * active_z[j]; 
+                        //weight_v[i][j] = clip5(weight_v[i][j]);
                 }
                 dlossd_h[j] = dlossd_z[j] * dlrelu(active_h[j]); 
         }
 
-        for (j=0; j!=2; ++j) {
+        for (j=0; j!=3; ++j) {
                 for (i=0; i!=4; ++i) {
                         weight_u[i][j] += learning_rate * dlossd_h[i] * input[j]; 
+                        //weight_u[i][j] = clip5(weight_u[i][j]);
                 }
         }
 }
