@@ -9,6 +9,7 @@
 ### Probabilistic Programs
     Gen's optimizer
 ### Program Induction
+### Unsupervised Branch Prediction
 
 ## EXAMPLES
 
@@ -16,21 +17,21 @@
 
     def score(temperature: float, pressure: float, injected_fuel: float): float
     {
-        mess: float;
+        var mess: float;
         mess = pollution(temperature, injected_fuel);
         if {
-                mess <= 1.0 --> return = power(temperature, pressure, injected_fuel);
-            |   mess >= 1.0 --> return = -10.0;
+            mess <= 1.0 ~> return = power(temperature, pressure, injected_fuel)
+            mess >= 1.0 ~> return = -10.0
         }
     } 
     def inject(temperature: float, pressure: float): float 
     {
         switch (temperature, pressure) {
-                return = -1.0;  // air
-            |   return =  0.0;  
-            |   return = +1.0;  // fuel
+            ~> return = -1.0    // air
+            ~> return =  0.0 
+            ~> return = +1.0    // fuel
         };
-        $(score(temperature, pressure, return));
+        $(score(temperature, pressure, return))
     }
 
 ### learn to communicate 

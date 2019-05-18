@@ -1,10 +1,19 @@
 ''' author: samuel
+    change: 2019-05-17
     create: 2019-02-01
-    change: 2019-02-01
     descrp: Given backus-naur grammar and string, return parse tree.
 '''
 
+ANSI={
+    'BLUE':'\033[34m',
+    'RED':'\033[31m',
+    'YELLOW':'\033[33m',
+    'WHITE':'\033[37m',
+}
+
 class ParseTree:
+    ''' 
+    '''
     def __init__(self, label='ROOT', kids=[], ignore=False, unroll=False):
         self.label = label
         self.kids = kids
@@ -20,12 +29,16 @@ class ParseTree:
     def display(self, depth=0, delim='   :', collapse=True):
         if self.ignore:
             return
-        if not self.unroll and (not collapse or self.width()!=1):
-            print(delim*depth + '\033[34m' + self.label + '\033[37m' + '[\033[33m' + self.get_source() + '\033[37m]')
+        elif not self.unroll and (not collapse or self.width()!=1):
+            source = self.get_source()
+            if len(source)>64+3:
+                source = source[:32] + ANSI['WHITE'] + '...' + ANSI['YELLOW'] + source[-32:]
+            source = ANSI['YELLOW'] + source + ANSI['WHITE']
+            print(delim*depth + ANSI['BLUE'] + self.label + ANSI['WHITE'] + '[' + source + ']')
             depth += 1
         for k in self.kids:
             if type(k)==type(''):
-                print(delim*depth + '\033[31m' + k + '\033[37m')
+                print(delim*depth + ANSI['RED'] + k + ANSI['WHITE'])
             else:
                 k.display(depth, delim, collapse)
 
@@ -126,7 +139,7 @@ class ParserGenerator:
     def build_sequence(self, subparsers): 
         def sequencep(text):
             kids = []  
-            for sp in subparsers :
+            for sp in subparsers:
                 new_kids = sp(text) 
                 if not new_kids: return False
                 if type(new_kids) != type([]): new_kids = [new_kids]
@@ -143,12 +156,12 @@ class ParserGenerator:
 
 
 if __name__ == '__main__':
-    with open('example_grammar.txt') as f:
+    with open('schwa_grammar.txt') as f:
         grammar = f.read()
    
     PG = ParserGenerator(grammar)
     P = PG.parsers['MAIN']
-    with open('example_program.txt') as f:
+    with open('schwa_program.txt') as f:
         text = f.read()
     text = ' '.join(text.split())
     print(text)
