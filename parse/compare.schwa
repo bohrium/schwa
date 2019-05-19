@@ -1,0 +1,7 @@
+def compare(a:float, b:float): int 
+{
+    switch (a, b) {
+        ~> return = 0 
+        ~> return = 1
+    }
+} 

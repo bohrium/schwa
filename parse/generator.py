@@ -33,6 +33,7 @@ class Generator(object):
 
         text = ' '.join(text.split())
         tree = schwa_parser(Text(text))
+        #tree.display()
         self.analyze_block(tree, context='schwa')
         print(ANSI['WHITE'] + 'successful analysis!')
 
@@ -41,6 +42,7 @@ class Generator(object):
         ccode +=        '#include <stdlib.h>'
         ccode += '\n' + '#include <stdio.h>'
         ccode += '\n' + '#define ABORT exit(1)'
+        ccode += '\n' + '#define bool char'
         ccode += '\n' + '#define true 1'
         ccode += '\n' + '#define false 0'
         ccode += '\n'
@@ -120,6 +122,28 @@ class Generator(object):
             cond_cons_pairs.append((bodycontents[0], bodycontents[1]))
             bodycontents = bodycontents[2:]
         return cond_cons_pairs
+
+    def process_switch(self, tree):
+        args, body, = tree.relevant_kids()
+
+        argtup, = args.relevant_kids()
+        argtupcontents, = argtup.relevant_kids()
+        argtupcontents = list(argtupcontents.relevant_kids())
+        arglist = []
+        while argtupcontents:
+            arglist.append(argtupcontents[0].get_source())
+            argtupcontents = argtupcontents[1:]
+            if argtupcontents:
+                argtupcontents = list(argtupcontents[0].relevant_kids())
+
+        bodycontents = list(body.relevant_kids())
+        cons_list = []
+        while bodycontents:
+            bodycontents = list(bodycontents[0].relevant_kids())
+            cons_list.append(bodycontents[0])
+            bodycontents = bodycontents[1:]
+
+        return arglist, cons_list
 
     def process_function(self, tree):
         assert tree.label == 'FUNCTION'
@@ -203,6 +227,12 @@ class Generator(object):
                 self.pprint('break;', context)
                 self.pprint('}', context)
                 self.pprint('}', context)
+            elif k.label == 'SWITCH':
+                arglist, cons_list = self.process_switch(k)
+                for arg in arglist:
+                    assert arg in types_by_name, 'switch arg %s unrecognized (context %s)' % (arg, context)
+                # TODO: instead of taking 1st branch as below, use neural net!
+                self.analyze_block(cons_list[0], context, inherited_types_by_name=types_by_name)
             elif k.label == 'FUNCTION':
                 identifier, argtypes_by_name, outtype, body = self.process_function(k)
                 new_context = identifier
