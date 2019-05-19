@@ -1,5 +1,9 @@
 var pi : float;
 pi = 3.141;
+def minus(a:float, b:float): float
+{
+    return = a - b
+};
 def gcd(a:int, b:int): int
 {
     do {
@@ -8,8 +12,6 @@ def gcd(a:int, b:int): int
     };
     return = a;
 };
-def plus(a:float, b:float): float
-{
-    return = a + b
-};
-
+var hi:int;
+hi = gcd(70, 120);
+print hi

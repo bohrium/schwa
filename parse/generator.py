@@ -5,6 +5,9 @@
 '''
 
 from parser import ParseTree, Text, ParserGenerator
+import sys
+assert len(sys.argv)==3
+schwa_filenm, c_filenm = sys.argv[1:]
 
 with open('schwa_grammar.txt') as f:
     grammar = f.read()
@@ -23,60 +26,74 @@ class Generator(object):
             'schwa': {
                 'argtypes_by_name': [],
                 'outtype': 'int',
-                'lines': []
+                'lines': [],
+                'cname': 'schwa',
             }
         }
 
         text = ' '.join(text.split())
         tree = schwa_parser(Text(text))
-
         self.analyze_block(tree, context='schwa')
-        self.total_print()
+        print(ANSI['WHITE'] + 'successful analysis!')
 
-    def total_print(self):
-        # header
-        print()
-        print('#include <stdlib.h>')
-        print('#include <stdio.h>')
-        print('#define ABORT exit(1)')
-        print('#define true 1')
-        print('#define false 0')
+    def render_header(self):
+        ccode = ''
+        ccode +=        '#include <stdlib.h>'
+        ccode += '\n' + '#include <stdio.h>'
+        ccode += '\n' + '#define ABORT exit(1)'
+        ccode += '\n' + '#define true 1'
+        ccode += '\n' + '#define false 0'
+        ccode += '\n'
+        return ccode
 
-        # declarations
-        print()
+    def render_declarations(self):
+        ccode = ''
         for context,data in self.functions.items():
-            cname = context.replace(':', '_0_')
-            print('%s %s(%s);' % (
+            ccode += '\n' + '%s %s(%s);' % (
                 data['outtype'],
-                cname,
+                data['cname'],
                 ', '.join('%s %s'%(tpnm, iden) for (iden, tpnm) in data['argtypes_by_name'])
-            ))
+            )
+        ccode += '\n'
+        return ccode
 
-        # main
-        print()
-        print('int main()')
-        print('{')
-        print('    schwa();')
-        print('}')
+    def render_main(self):
+        ccode = ''
+        ccode += '\n' + 'int main()'
+        ccode += '\n' + '{'
+        ccode += '\n' + '    schwa();'
+        ccode += '\n' + '}'
+        ccode += '\n'
+        return ccode
 
-        # definitions
-        print()
+    def render_definitions(self):
+        ccode = ''
         for context,data in self.functions.items():
             cname = context.replace(':', '_0_')
-            print('%s %s(%s)' % (
+            ccode += '\n' + '%s %s(%s)' % (
                 data['outtype'],
-                cname,
+                data['cname'],
                 ', '.join('%s %s'%(typename, identifier) for (identifier, typename) in data['argtypes_by_name'])
-            ))
-            print('{')
+            )
+            ccode += '\n' + '{'
             indent = 1
             for line in self.functions[context]['lines']:
                 if not line: continue
                 indent -= line[0].count('}')
-                print('    '*indent + line)
+                ccode += '\n' + '    '*indent + line
                 indent += line.count('{')
                 indent -= line[1:].count('}')
-            print('}')
+            ccode += '\n' + '}'
+            ccode += '\n'
+        return ccode
+
+    def total_print(self):
+        ccode = ''
+        ccode += self.render_header()
+        ccode += self.render_declarations()
+        ccode += self.render_main()
+        ccode += self.render_definitions()
+        return ccode
 
     def pprint(self, string, context):
         for line in string.split('\n'):
@@ -91,7 +108,7 @@ class Generator(object):
     def process_assignment(self, tree):
         assert tree.label == 'ASSIGNMENT'
         identifier, expression = tree.relevant_kids()
-        return (x.get_source() for x in (identifier, expression))
+        return identifier.get_source(), expression
 
     def process_guarded_sequence(self, tree):
         body, = tree.relevant_kids()
@@ -119,6 +136,26 @@ class Generator(object):
                 arglist = list(arglist[0].relevant_kids())
         return (identifier.get_source(), argtypes_by_name, outtype.get_source(), body)
  
+    def translate_arith(self, tree, context, inherited_types_by_name={}):
+        ccode = ''
+        for k in tree.kids:
+            if type(k)==type(''):
+                if not k.strip(): continue
+                if k in {'and', 'or', 'not'}:
+                    k = {'and':'&&', 'or':'||', 'not':'!'}[k]
+                ccode += k
+            elif k.label == 'IDENTIFIERLOOP':
+                identifier = k.get_source()
+                func_cname = context+'_0_'+identifier 
+                if func_cname in self.functions:
+                    ccode += self.functions[func_cname]['cname']
+                else:
+                    assert identifier in inherited_types_by_name, '%s not declared! (context %s)' % (identifier, context)
+                    ccode += identifier
+            else:
+                ccode += self.translate_arith(k, context, inherited_types_by_name)
+        return ccode
+
     def analyze_block(self, tree, context, inherited_types_by_name={}):
         ''' assume no function defns within
         '''
@@ -135,10 +172,10 @@ class Generator(object):
             elif k.label == 'ASSIGNMENT':
                 identifier, expression = self.process_assignment(k) 
                 if identifier=='return':
-                    self.pprint('return %s;' % expression.strip(), context)
+                    self.pprint('return %s;' % self.translate_arith(expression, context, types_by_name), context)
                 else:
-                    assert (identifier in types_by_name), '%s not declared!' % identifier
-                    self.pprint('%s = %s;' % (identifier, expression.strip()), context)
+                    assert (identifier in types_by_name), '%s not declared! (context %s)' % (identifier, context)
+                    self.pprint('%s = %s;' % (identifier, self.translate_arith(expression, context, types_by_name)), context)
             elif k.label == 'IF': 
                 cond_cons_pairs = self.process_guarded_sequence(k)
                 for i, (cond, cons) in enumerate(cond_cons_pairs): 
@@ -165,24 +202,41 @@ class Generator(object):
                 self.pprint('}', context)
             elif k.label == 'FUNCTION':
                 identifier, argtypes_by_name, outtype, body = self.process_function(k)
-                new_context = '%s:%s' % (context, identifier)
+                new_context = '%s_0_%s' % (context, identifier)
                 assert (new_context not in self.functions), 'function %s already declared!'
-                #print(ANSI['RED'] + 'create context %s' % new_context)
+                print(ANSI['RED'] + 'create context %s' % new_context)
+                k
                 self.functions[new_context] = {
                         'argtypes_by_name':argtypes_by_name,
                         'outtype': outtype,
-                        'lines':[]
+                        'lines':[],
+                        'cname': new_context
                 }
                 self.analyze_block(
                         body,
                         inherited_types_by_name={k:v for k,v in argtypes_by_name},
                         context=new_context
                 )
+            elif k.label == 'PRINT': 
+                identifier, = k.relevant_kids()
+                identifier = identifier.get_source()
+                assert (identifier in types_by_name), '%s not declared! (print context %s)' % (identifier, context)
+                typename = types_by_name[identifier]
+                if typename == 'float':
+                    self.pprint('printf("%%f\\n", %s);' % identifier, context)
+                elif typename == 'int':
+                    self.pprint('printf("%%d\\n", %s);' % identifier, context)
+                elif typename == 'bool':
+                    self.pprint('printf("%%s\\n", %s?"true":"false");' % identifier, context)
+                else:
+                    assert False
             else:
                 node_stack = list(k.relevant_kids()) + node_stack
 
    
 if __name__ == '__main__':
-    with open('short_program.txt') as f:
+    with open(schwa_filenm) as f:
         text = f.read()
-    Generator(text) 
+    G = Generator(text) 
+    with open(c_filenm, 'w') as f:
+        f.write(G.total_print())
