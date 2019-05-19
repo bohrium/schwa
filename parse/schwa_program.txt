@@ -17,7 +17,7 @@ def myfunc ( radius : float ) : float
     flag = 1.0 ; 
 
     if {
-        area < perimeter ~>
+        not area < perimeter ~>
             do { area < perimiter ~> area = area + 1.0 }
         perimiter < area ~>
             flag = - flag

@@ -61,7 +61,9 @@ class Generator(object):
         ccode = ''
         ccode += '\n' + 'int main()'
         ccode += '\n' + '{'
+        ccode += '\n' + '    printf("\\033[33m");'
         ccode += '\n' + '    schwa();'
+        ccode += '\n' + '    printf("\\033[37m");'
         ccode += '\n' + '}'
         ccode += '\n'
         return ccode
@@ -69,7 +71,6 @@ class Generator(object):
     def render_definitions(self):
         ccode = ''
         for context,data in self.functions.items():
-            cname = context.replace(':', '_0_')
             ccode += '\n' + '%s %s(%s)' % (
                 data['outtype'],
                 data['cname'],
@@ -136,24 +137,26 @@ class Generator(object):
                 arglist = list(arglist[0].relevant_kids())
         return (identifier.get_source(), argtypes_by_name, outtype.get_source(), body)
  
-    def translate_arith(self, tree, context, inherited_types_by_name={}):
+    def translate_expr(self, tree, context, inherited_types_by_name={}):
         ccode = ''
         for k in tree.kids:
             if type(k)==type(''):
                 if not k.strip(): continue
-                if k in {'and', 'or', 'not'}:
-                    k = {'and':'&&', 'or':'||', 'not':'!'}[k]
-                ccode += k
+                if k.strip() in {'and', 'or', 'not'}:
+                    ccode += {'and':'&&', 'or':'||', 'not':'!'}[k.strip()]
+                else:
+                    ccode += k
             elif k.label == 'IDENTIFIERLOOP':
                 identifier = k.get_source()
-                func_cname = context+'_0_'+identifier 
-                if func_cname in self.functions:
-                    ccode += self.functions[func_cname]['cname']
+                if identifier in self.functions:
+                    ccode += self.functions[identifier]['cname']
                 else:
                     assert identifier in inherited_types_by_name, '%s not declared! (context %s)' % (identifier, context)
                     ccode += identifier
             else:
-                ccode += self.translate_arith(k, context, inherited_types_by_name)
+                ccode += self.translate_expr(k, context, inherited_types_by_name)
+        if tree.label == 'LOGICFACTOR':
+            ccode = '(%s)' % ccode
         return ccode
 
     def analyze_block(self, tree, context, inherited_types_by_name={}):
@@ -172,16 +175,16 @@ class Generator(object):
             elif k.label == 'ASSIGNMENT':
                 identifier, expression = self.process_assignment(k) 
                 if identifier=='return':
-                    self.pprint('return %s;' % self.translate_arith(expression, context, types_by_name), context)
+                    self.pprint('return %s;' % self.translate_expr(expression, context, types_by_name), context)
                 else:
                     assert (identifier in types_by_name), '%s not declared! (context %s)' % (identifier, context)
-                    self.pprint('%s = %s;' % (identifier, self.translate_arith(expression, context, types_by_name)), context)
+                    self.pprint('%s = %s;' % (identifier, self.translate_expr(expression, context, types_by_name)), context)
             elif k.label == 'IF': 
                 cond_cons_pairs = self.process_guarded_sequence(k)
                 for i, (cond, cons) in enumerate(cond_cons_pairs): 
                     self.pprint(
                         ('if' if i==0 else '} else if') +
-                        ' (%s) {' % cond.get_source().strip()
+                        ' (%s) {' % self.translate_expr(cond, context, types_by_name).strip()
                     , context)
                     self.analyze_block(cons, context, inherited_types_by_name=types_by_name)
                 self.pprint('} else {', context)
@@ -193,7 +196,7 @@ class Generator(object):
                 for i, (cond, cons) in enumerate(cond_cons_pairs): 
                     self.pprint(
                         ('if' if i==0 else '} else if') +
-                        ' (%s) {' % cond.get_source().strip()
+                        ' (%s) {' % self.translate_expr(cond, context, types_by_name).strip()
                     , context)
                     self.analyze_block(cons, context, inherited_types_by_name=types_by_name)
                 self.pprint('} else {', context)
@@ -202,15 +205,15 @@ class Generator(object):
                 self.pprint('}', context)
             elif k.label == 'FUNCTION':
                 identifier, argtypes_by_name, outtype, body = self.process_function(k)
-                new_context = '%s_0_%s' % (context, identifier)
+                new_context = identifier
                 assert (new_context not in self.functions), 'function %s already declared!'
                 print(ANSI['RED'] + 'create context %s' % new_context)
                 k
-                self.functions[new_context] = {
+                self.functions[identifier] = {
                         'argtypes_by_name':argtypes_by_name,
                         'outtype': outtype,
                         'lines':[],
-                        'cname': new_context
+                        'cname': identifier 
                 }
                 self.analyze_block(
                         body,
@@ -223,11 +226,11 @@ class Generator(object):
                 assert (identifier in types_by_name), '%s not declared! (print context %s)' % (identifier, context)
                 typename = types_by_name[identifier]
                 if typename == 'float':
-                    self.pprint('printf("%%f\\n", %s);' % identifier, context)
+                    self.pprint('printf("%s \t %%f\\n", %s);' % (identifier, identifier), context)
                 elif typename == 'int':
-                    self.pprint('printf("%%d\\n", %s);' % identifier, context)
+                    self.pprint('printf("%s \t %%d\\n", %s);' % (identifier, identifier), context)
                 elif typename == 'bool':
-                    self.pprint('printf("%%s\\n", %s?"true":"false");' % identifier, context)
+                    self.pprint('printf("%s \t %%s\\n", %s?"true":"false");' % (identifier, identifier), context)
                 else:
                     assert False
             else:

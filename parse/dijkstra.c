@@ -5,34 +5,37 @@
 #define false 0
 
 int schwa();
-float schwa_0_minus(float a, float b);
-int schwa_0_gcd(int a, int b);
+float minus(float a, float b);
+int gcd(int a, int b);
 
 int main()
 {
+    printf("\033[33m");
     schwa();
+    printf("\033[37m");
 }
 
 int schwa()
 {
     float pi;
-    pi = 3.141;
-    int hi;
-    hi = schwa_0_gcd(70,120);
-    printf("%d\n", hi);
+    pi = 3.1415926;
+    int answer;
+    answer = gcd(70,120);
+    printf("answer 	 %d\n", answer);
+    printf("pi 	 %f\n", pi);
 }
 
-float schwa_0_minus(float a, float b)
+float minus(float a, float b)
 {
     return a-b;
 }
 
-int schwa_0_gcd(int a, int b)
+int gcd(int a, int b)
 {
     while (true) {
-        if (a > b) {
+        if ((!(a<=b))) {
             a = a-b;
-        } else if (a < b) {
+        } else if ((a<b)) {
             b = b-a;
         } else {
             break;
