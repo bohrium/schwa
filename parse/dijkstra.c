@@ -5,8 +5,9 @@
 #define false 0
 
 int schwa();
-float minus(float a, float b);
-int gcd(int a, int b);
+float _minus(float a, float b);
+int _gcd(int a, int b);
+int _factorial(int a);
 
 int main()
 {
@@ -20,17 +21,19 @@ int schwa()
     float pi;
     pi = 3.1415926;
     int answer;
-    answer = gcd(70,120);
+    answer = _gcd(70,120);
+    printf("answer 	 %d\n", answer);
+    answer = _factorial(7);
     printf("answer 	 %d\n", answer);
     printf("pi 	 %f\n", pi);
 }
 
-float minus(float a, float b)
+float _minus(float a, float b)
 {
     return a-b;
 }
 
-int gcd(int a, int b)
+int _gcd(int a, int b)
 {
     while (true) {
         if ((!(a<=b))) {
@@ -42,4 +45,15 @@ int gcd(int a, int b)
         }
     }
     return a;
+}
+
+int _factorial(int a)
+{
+    if ((1<=a)) {
+        return _factorial(a-1)*a;
+    } else if ((0==a)) {
+        return 1;
+    } else {
+        ABORT;
+    }
 }

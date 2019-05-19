@@ -208,12 +208,11 @@ class Generator(object):
                 new_context = identifier
                 assert (new_context not in self.functions), 'function %s already declared!'
                 print(ANSI['RED'] + 'create context %s' % new_context)
-                k
                 self.functions[identifier] = {
                         'argtypes_by_name':argtypes_by_name,
                         'outtype': outtype,
                         'lines':[],
-                        'cname': identifier 
+                        'cname': '_' + identifier 
                 }
                 self.analyze_block(
                         body,
