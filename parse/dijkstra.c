@@ -7,6 +7,7 @@
 int schwa();
 float minus(float a, float b);
 int gcd(int a, int b);
+int factorial(int a);
 
 int main()
 {
@@ -21,6 +22,8 @@ int schwa()
     pi = 3.1415926;
     int answer;
     answer = gcd(70,120);
+    printf("answer 	 %d\n", answer);
+    answer = factorial(7);
     printf("answer 	 %d\n", answer);
     printf("pi 	 %f\n", pi);
 }
@@ -42,4 +45,15 @@ int gcd(int a, int b)
         }
     }
     return a;
+}
+
+int factorial(int a)
+{
+    if ((1<=a)) {
+        return factorial(a-1)*a;
+    } else if ((0==a)) {
+        return 1;
+    } else {
+        ABORT;
+    }
 }

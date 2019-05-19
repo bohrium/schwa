@@ -12,7 +12,16 @@ def gcd(a:int, b:int): int
     };
     return = a;
 };
+def factorial(a:int): int
+{
+    if {
+        1 <= a ~> return = factorial(a-1)*a 
+        0 == a ~> return = 1
+    } 
+}; 
 var answer:int;
 answer = gcd(70, 120);
+print answer;
+answer = factorial(7);
 print answer;
 print pi 
