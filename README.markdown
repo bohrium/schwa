@@ -31,8 +31,8 @@
             ~> return =  0.0 
             ~> return = +1.0    // fuel
         };
-        $(score(temperature, pressure, return))
     }
+    $(score(temperature, pressure, inject(temperature, pressure)))
 
 ### learn to communicate 
 

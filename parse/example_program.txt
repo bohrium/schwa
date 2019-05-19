@@ -1,0 +1,6 @@
+area = pi * radius*radius;
+perimiter = two * (length   + width);
+flag = okay; 
+area = area + one od ; abort; 
+flag = -okay;
+skip 

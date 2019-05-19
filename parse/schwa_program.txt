@@ -24,6 +24,8 @@ def myfunc ( radius : float ) : float
     }
 };
 
+switch (temperature, pressure) {
+    ~> abort
+};
 
 $ pi
-

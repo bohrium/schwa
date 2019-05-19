@@ -1,5 +1,5 @@
 ''' author: samuel
-    change: 2019-05-17
+    change: 2019-05-18
     create: 2019-02-01
     descrp: Given backus-naur grammar and string, return parse tree.
 '''
@@ -26,7 +26,14 @@ class ParseTree:
     def width(self): 
         return len([k for k in self.kids if type(k)==type('') or not k.ignore])
 
-    def display(self, depth=0, delim='   :', collapse=True):
+    def relevant_kids(self):
+        ''' no literal strings and no ignoreds '''
+        return (k for k in self.kids if type(k)!=type('') and not k.ignore)
+
+    def display(self, depth=0, delim='   :', collapse=False):
+        '''
+                `collapse` indicates whether to collapse unary vines down to leafmost node of vine 
+        '''
         if self.ignore:
             return
         elif not self.unroll and (not collapse or self.width()!=1):
