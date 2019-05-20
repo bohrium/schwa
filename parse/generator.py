@@ -30,6 +30,13 @@ class Generator(object):
                 'cname': 'schwa',
             }
         }
+        self.switch_data = {
+            #0: {
+            #   'nb_inputs':    3 
+            #   'nb_hidden':    4
+            #   'nb_outputs':   2
+            #},
+        }
 
         text = ' '.join(text.split())
         tree = schwa_parser(Text(text))
@@ -41,10 +48,13 @@ class Generator(object):
         ccode = ''
         ccode +=        '#include <stdlib.h>'
         ccode += '\n' + '#include <stdio.h>'
+        ccode += '\n' + '#include <math.h>'
         ccode += '\n' + '#define ABORT exit(1)'
         ccode += '\n' + '#define bool char'
         ccode += '\n' + '#define true 1'
         ccode += '\n' + '#define false 0'
+        ccode += '\n' + 'static int i, j;'
+        ccode += '\n' + 'static float r, cumulative;'
         ccode += '\n'
         return ccode
 
@@ -59,10 +69,120 @@ class Generator(object):
         ccode += '\n'
         return ccode
 
+    def render_nns(self):
+        ccode = ''
+        for k, d in self.switch_data.items():
+            I, H, O = d['nb_inputs'], d['nb_hidden'], d['nb_outputs']
+            ccode += '\n' + 'static float input%d[%d];' % (k, I)
+            ccode += '\n' + 'static float weight_u%d[%d][%d];' % (k, H, I)
+            ccode += '\n' + 'static float active_h%d[%d];       static float dlossd_h%d[%d];' % (k, H, k, H)
+            ccode += '\n' + 'static float active_z%d[%d];       static float dlossd_z%d[%d];' % (k, H, k, H)
+            ccode += '\n' + 'static float weight_v%d[%d][%d];' % (k, O, H)
+            ccode += '\n' + 'static float active_hh%d[%d];      static float dlossd_hh%d[%d];' % (k, O, k, O)
+            ccode += '\n' + 'static float active_exphh%d[%d];' % (k, O)
+            ccode += '\n' + 'static float partition%d;' % k
+            ccode += '\n' + 'static int sample%d;' % k
+        ccode += '\n' + 'static float reward;'
+        ccode += '\n'
+        return ccode
+
+    def render_weight_initialization(self):
+        ccode = ''
+        ccode += '\n' + 'float uniform()'
+        ccode += '\n' + '{'
+        ccode += '\n' + '    return ((float)rand())/RAND_MAX;'
+        ccode += '\n' + '}'
+        ccode += '\n' + 'float laplace()'
+        ccode += '\n' + '{'
+        ccode += '\n' + '    return log(uniform()) * (rand()%2 ? -1 : +1);'
+        ccode += '\n' + '}'
+        ccode += '\n' + 'void initialize_weights()'
+        ccode += '\n' + '{'
+        for k, d in self.switch_data.items():
+            I, H, O = d['nb_inputs'], d['nb_hidden'], d['nb_outputs']
+            ccode += '\n' + '    for (int i=0; i!=%d; ++i) {' % H
+            ccode += '\n' + '        for (int j=0; j!=%d; ++j) {' % I
+            ccode += '\n' + '            weight_u%d[i][j] = 0.1 * laplace();' % k
+            ccode += '\n' + '        }'
+            ccode += '\n' + '    }'
+            ccode += '\n' + '    for (int i=0; i!=%d; ++i) {' % O
+            ccode += '\n' + '        for (int j=0; j!=%d; ++j) {' % H
+            ccode += '\n' + '            weight_v%d[i][j] = 0.1 * laplace();' % k
+            ccode += '\n' + '        }'
+            ccode += '\n' + '    }'
+        ccode += '\n' + '}'
+        ccode += '\n' + 'float lrelu(float h)'
+        ccode += '\n' + '{'
+        ccode += '\n' + '        return (h<0 ? 0.2 * h : h);'
+        ccode += '\n' + '}'
+        ccode += '\n' + 'float dlrelu(float h)'
+        ccode += '\n' + '{'
+        ccode += '\n' + '        return (h<0 ? 0.2 : 1.0);'
+        ccode += '\n' + '}'
+        ccode += '\n'
+        return ccode
+
+    def render_forward(self, s_index):
+        ccode = ''
+        ccode += '\n' + 'for (i=0; i!=4; ++i) {'
+        ccode += '\n' + '    active_h%d[i] = 0.0;' % s_index
+        ccode += '\n' + '    for (j=0; j!=3; ++j) {'
+        ccode += '\n' + '        active_h%d[i] += weight_u%d[i][j] * input%d[j];' % (s_index, s_index, s_index)
+        ccode += '\n' + '    }'
+        ccode += '\n' + '    active_z%d[i] = lrelu(active_h%d[i]);' % (s_index, s_index)
+        ccode += '\n' + '}'
+        ccode += '\n' + 'partition%d = 0.0;' % s_index
+        ccode += '\n' + 'for (i=0; i!=2; ++i) {'
+        ccode += '\n' + '    active_hh%d[i] = 0.0;' % s_index
+        ccode += '\n' + '    for (j=0; j!=4; ++j) {'
+        ccode += '\n' + '        active_hh%d[i] += weight_v%d[i][j] * active_z%d[j];' % (s_index, s_index, s_index)
+        ccode += '\n' + '    }'
+        ccode += '\n' + '    active_exphh%d[i] = exp(active_hh%d[i]);' % (s_index, s_index)
+        ccode += '\n' + '    partition%d += active_exphh%d[i];' % (s_index, s_index)
+        ccode += '\n' + '}'
+        ccode += '\n' + 'r = uniform();'
+        ccode += '\n' + 'cumulative = 0.0;'
+        ccode += '\n' + 'for (i=0; i!=2; ++i) {'
+        ccode += '\n' + '    cumulative += active_exphh%d[i] / partition%d;' % (s_index, s_index)
+        ccode += '\n' + '    if (cumulative >= r) { break; }'
+        ccode += '\n' + '}'
+        ccode += '\n' + 'sample%d = i;' % s_index
+        ccode += '\n'
+        return ccode
+
+    def render_backward(self, s_index):
+        pass
+        #float g = reward - baseline;
+
+        #int i,j;
+        #for (i=0; i!=2; ++i) {
+        #        dlossd_hh[i] = - g * active_exphh[i] / partition;
+        #}
+        #dlossd_hh[sample] += g;
+
+        #for (j=0; j!=4; ++j) {
+        #        dlossd_z[j] = 0.0;
+        #        for (i=0; i!=2; ++i) {
+        #                dlossd_z[j] += weight_v[i][j] * dlossd_hh[i];
+        #                weight_v[i][j] += learning_rate * dlossd_hh[i] * active_z[j]; 
+        #                //weight_v[i][j] = clip5(weight_v[i][j]);
+        #        }
+        #        dlossd_h[j] = dlossd_z[j] * dlrelu(active_h[j]); 
+        #}
+
+        #for (j=0; j!=3; ++j) {
+        #        for (i=0; i!=4; ++i) {
+        #                weight_u[i][j] += learning_rate * dlossd_h[i] * input[j]; 
+        #                //weight_u[i][j] = clip5(weight_u[i][j]);
+        #        }
+        #}
+
+
     def render_main(self):
         ccode = ''
         ccode += '\n' + 'int main()'
         ccode += '\n' + '{'
+        ccode += '\n' + '    initialize_weights();'
         ccode += '\n' + '    printf("\\033[33m");'
         ccode += '\n' + '    schwa();'
         ccode += '\n' + '    printf("\\033[37m");'
@@ -94,6 +214,8 @@ class Generator(object):
         ccode = ''
         ccode += self.render_header()
         ccode += self.render_declarations()
+        ccode += self.render_nns()
+        ccode += self.render_weight_initialization()
         ccode += self.render_main()
         ccode += self.render_definitions()
         return ccode
@@ -231,8 +353,23 @@ class Generator(object):
                 arglist, cons_list = self.process_switch(k)
                 for arg in arglist:
                     assert arg in types_by_name, 'switch arg %s unrecognized (context %s)' % (arg, context)
-                # TODO: instead of taking 1st branch as below, use neural net!
-                self.analyze_block(cons_list[0], context, inherited_types_by_name=types_by_name)
+                s_index = len(self.switch_data) 
+                self.switch_data[s_index] = {
+                        'nb_inputs': len(arglist)+1,
+                        'nb_hidden': len(arglist)*len(cons_list),
+                        'nb_outputs': len(cons_list),
+                }
+                for i,x in enumerate(arglist):
+                    self.pprint('input%d[%d] = %s;' % (s_index, i, x), context) 
+                self.pprint('input%d[%d] = 1.0;' % (s_index, len(arglist)), context)
+                for line in self.render_forward(s_index).split('\n'):
+                    self.pprint(line.strip(), context)
+                self.pprint('switch (sample%d) {' % s_index, context)
+                for i, c in enumerate(cons_list):
+                    self.pprint('case %d: {' % i, context)
+                    self.analyze_block(c, context, inherited_types_by_name=types_by_name)
+                    self.pprint('} break;', context)
+                self.pprint('}', context)
             elif k.label == 'FUNCTION':
                 identifier, argtypes_by_name, outtype, body = self.process_function(k)
                 new_context = identifier
@@ -249,17 +386,21 @@ class Generator(object):
                         inherited_types_by_name={k:v for k,v in argtypes_by_name},
                         context=new_context
                 )
+            elif k.label == 'REWARD':
+                amount, = k.relevant_kids()
+                self.pprint('reward = %s;' % amount.get_source(), context)
+                # TODO: add backward code
             elif k.label == 'PRINT': 
                 identifier, = k.relevant_kids()
                 identifier = identifier.get_source()
                 assert (identifier in types_by_name), '%s not declared! (print context %s)' % (identifier, context)
                 typename = types_by_name[identifier]
                 if typename == 'float':
-                    self.pprint('printf("%s \t %%f\\n", %s);' % (identifier, identifier), context)
+                    self.pprint('printf("%s \\t %%f\\n", %s);' % (identifier, identifier), context)
                 elif typename == 'int':
-                    self.pprint('printf("%s \t %%d\\n", %s);' % (identifier, identifier), context)
+                    self.pprint('printf("%s \\t %%d\\n", %s);' % (identifier, identifier), context)
                 elif typename == 'bool':
-                    self.pprint('printf("%s \t %%s\\n", %s?"true":"false");' % (identifier, identifier), context)
+                    self.pprint('printf("%s \\t %%s\\n", %s?"true":"false");' % (identifier, identifier), context)
                 else:
                     assert False
             else:

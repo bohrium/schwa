@@ -1,7 +1,16 @@
+var moo : float;
+var too : float;
+moo = -5.0;
+too = -6.0;
 def compare(a:float, b:float): int 
 {
     switch (a, b) {
         ~> return = 0 
         ~> return = 1
     }
-} 
+};
+var c : int;
+c = compare(moo, too);
+$(5.0 + c);
+print c;
+

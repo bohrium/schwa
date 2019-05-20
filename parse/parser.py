@@ -168,7 +168,7 @@ if __name__ == '__main__':
    
     PG = ParserGenerator(grammar)
     P = PG.parsers['MAIN']
-    with open('schwa_program.txt') as f:
+    with open('dijkstra.schwa') as f:
         text = f.read()
     text = ' '.join(text.split())
     print(text)
