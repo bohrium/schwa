@@ -13,6 +13,24 @@ with open('schwa_grammar.txt') as f:
     grammar = f.read()
 schwa_parser = ParserGenerator(grammar).parsers['MAIN']
 
+with open('main_template.c') as f:
+    main_template= f.read()
+with open('nn_globals_template.c') as f:
+    nn_globals_template = f.read()
+with open('weight_init_template.c') as f:
+    weight_init_template = f.read()
+with open('forward_template.c') as f:
+    forward_template = f.read()
+with open('log_in_history_template.c') as f:
+    log_in_history_template= f.read()
+with open('backward_template.c') as f:
+    backward_template = f.read()
+with open('update_baseline_template.c') as f:
+    update_baseline_template = f.read()
+
+
+
+
 ANSI={
     'BLUE':'\033[34m',
     'RED':'\033[31m',
@@ -23,11 +41,11 @@ ANSI={
 class Generator(object):
     def __init__(self, text):
         self.functions = {
-            'schwa': {
+            'main': {
                 'argtypes_by_name': [],
                 'outtype': 'int',
                 'lines': [],
-                'cname': 'schwa',
+                'cname': '_main',
             }
         }
         self.switch_data = {
@@ -41,24 +59,10 @@ class Generator(object):
         text = ' '.join(text.split())
         tree = schwa_parser(Text(text))
         #tree.display()
-        self.analyze_block(tree, context='schwa')
+        self.analyze_block(tree, context='main')
         print(ANSI['WHITE'] + 'successful analysis!')
 
-    def render_header(self):
-        ccode = ''
-        ccode +=        '#include <stdlib.h>'
-        ccode += '\n' + '#include <stdio.h>'
-        ccode += '\n' + '#include <math.h>'
-        ccode += '\n' + '#define ABORT exit(1)'
-        ccode += '\n' + '#define bool char'
-        ccode += '\n' + '#define true 1'
-        ccode += '\n' + '#define false 0'
-        ccode += '\n' + 'static int i, j;'
-        ccode += '\n' + 'static float r, cumulative;'
-        ccode += '\n'
-        return ccode
-
-    def render_declarations(self):
+    def render_func_declarations(self):
         ccode = ''
         for context,data in self.functions.items():
             ccode += '\n' + '%s %s(%s);' % (
@@ -69,128 +73,69 @@ class Generator(object):
         ccode += '\n'
         return ccode
 
-    def render_nns(self):
+    def render_nn_globals(self):
         ccode = ''
-        for k, d in self.switch_data.items():
+        for s_index, d in self.switch_data.items():
             I, H, O = d['nb_inputs'], d['nb_hidden'], d['nb_outputs']
-            ccode += '\n' + 'static float input%d[%d];' % (k, I)
-            ccode += '\n' + 'static float weight_u%d[%d][%d];' % (k, H, I)
-            ccode += '\n' + 'static float active_h%d[%d];       static float dlossd_h%d[%d];' % (k, H, k, H)
-            ccode += '\n' + 'static float active_z%d[%d];       static float dlossd_z%d[%d];' % (k, H, k, H)
-            ccode += '\n' + 'static float weight_v%d[%d][%d];' % (k, O, H)
-            ccode += '\n' + 'static float active_hh%d[%d];      static float dlossd_hh%d[%d];' % (k, O, k, O)
-            ccode += '\n' + 'static float active_exphh%d[%d];' % (k, O)
-            ccode += '\n' + 'static float partition%d;' % k
-            ccode += '\n' + 'static int sample%d;' % k
-        ccode += '\n' + 'static float reward;'
-        ccode += '\n'
+            ccode += (nn_globals_template 
+                .replace('/*S_INDEX*/'   , str(s_index))
+                .replace('/*NB_INPUTS*/' , str(I))
+                .replace('/*NB_HIDDEN*/' , str(H))
+                .replace('/*NB_OUTPUTS*/', str(O))
+            )
         return ccode
 
-    def render_weight_initialization(self):
+    def render_weight_init(self):
         ccode = ''
-        ccode += '\n' + 'float uniform()'
-        ccode += '\n' + '{'
-        ccode += '\n' + '    return ((float)rand())/RAND_MAX;'
-        ccode += '\n' + '}'
-        ccode += '\n' + 'float laplace()'
-        ccode += '\n' + '{'
-        ccode += '\n' + '    return log(uniform()) * (rand()%2 ? -1 : +1);'
-        ccode += '\n' + '}'
-        ccode += '\n' + 'void initialize_weights()'
-        ccode += '\n' + '{'
-        for k, d in self.switch_data.items():
+        for s_index, d in self.switch_data.items():
             I, H, O = d['nb_inputs'], d['nb_hidden'], d['nb_outputs']
-            ccode += '\n' + '    for (int i=0; i!=%d; ++i) {' % H
-            ccode += '\n' + '        for (int j=0; j!=%d; ++j) {' % I
-            ccode += '\n' + '            weight_u%d[i][j] = 0.1 * laplace();' % k
-            ccode += '\n' + '        }'
-            ccode += '\n' + '    }'
-            ccode += '\n' + '    for (int i=0; i!=%d; ++i) {' % O
-            ccode += '\n' + '        for (int j=0; j!=%d; ++j) {' % H
-            ccode += '\n' + '            weight_v%d[i][j] = 0.1 * laplace();' % k
-            ccode += '\n' + '        }'
-            ccode += '\n' + '    }'
-        ccode += '\n' + '}'
-        ccode += '\n' + 'float lrelu(float h)'
-        ccode += '\n' + '{'
-        ccode += '\n' + '        return (h<0 ? 0.2 * h : h);'
-        ccode += '\n' + '}'
-        ccode += '\n' + 'float dlrelu(float h)'
-        ccode += '\n' + '{'
-        ccode += '\n' + '        return (h<0 ? 0.2 : 1.0);'
-        ccode += '\n' + '}'
-        ccode += '\n'
+            ccode += (weight_init_template
+                .replace('/*S_INDEX*/'   , str(s_index))
+                .replace('/*NB_INPUTS*/' , str(I))
+                .replace('/*NB_HIDDEN*/' , str(H))
+                .replace('/*NB_OUTPUTS*/', str(O))
+            )
         return ccode
 
     def render_forward(self, s_index):
-        ccode = ''
-        ccode += '\n' + 'for (i=0; i!=4; ++i) {'
-        ccode += '\n' + '    active_h%d[i] = 0.0;' % s_index
-        ccode += '\n' + '    for (j=0; j!=3; ++j) {'
-        ccode += '\n' + '        active_h%d[i] += weight_u%d[i][j] * input%d[j];' % (s_index, s_index, s_index)
-        ccode += '\n' + '    }'
-        ccode += '\n' + '    active_z%d[i] = lrelu(active_h%d[i]);' % (s_index, s_index)
-        ccode += '\n' + '}'
-        ccode += '\n' + 'partition%d = 0.0;' % s_index
-        ccode += '\n' + 'for (i=0; i!=2; ++i) {'
-        ccode += '\n' + '    active_hh%d[i] = 0.0;' % s_index
-        ccode += '\n' + '    for (j=0; j!=4; ++j) {'
-        ccode += '\n' + '        active_hh%d[i] += weight_v%d[i][j] * active_z%d[j];' % (s_index, s_index, s_index)
-        ccode += '\n' + '    }'
-        ccode += '\n' + '    active_exphh%d[i] = exp(active_hh%d[i]);' % (s_index, s_index)
-        ccode += '\n' + '    partition%d += active_exphh%d[i];' % (s_index, s_index)
-        ccode += '\n' + '}'
-        ccode += '\n' + 'r = uniform();'
-        ccode += '\n' + 'cumulative = 0.0;'
-        ccode += '\n' + 'for (i=0; i!=2; ++i) {'
-        ccode += '\n' + '    cumulative += active_exphh%d[i] / partition%d;' % (s_index, s_index)
-        ccode += '\n' + '    if (cumulative >= r) { break; }'
-        ccode += '\n' + '}'
-        ccode += '\n' + 'sample%d = i;' % s_index
-        ccode += '\n'
+        d = self.switch_data[s_index]
+        I, H, O = d['nb_inputs'], d['nb_hidden'], d['nb_outputs']
+        ccode = (forward_template
+            .replace('/*S_INDEX*/'   , str(s_index))
+            .replace('/*NB_INPUTS*/' , str(I))
+            .replace('/*NB_HIDDEN*/' , str(H))
+            .replace('/*NB_OUTPUTS*/', str(O))
+        )
+        return ccode
+
+    def render_log_in_history(self, s_index):
+        d = self.switch_data[s_index]
+        I, H, O = d['nb_inputs'], d['nb_hidden'], d['nb_outputs']
+        ccode = (log_in_history_template
+            .replace('/*S_INDEX*/'   , str(s_index))
+            .replace('/*NB_INPUTS*/' , str(I))
+        )
         return ccode
 
     def render_backward(self, s_index):
-        pass
-        #float g = reward - baseline;
-
-        #int i,j;
-        #for (i=0; i!=2; ++i) {
-        #        dlossd_hh[i] = - g * active_exphh[i] / partition;
-        #}
-        #dlossd_hh[sample] += g;
-
-        #for (j=0; j!=4; ++j) {
-        #        dlossd_z[j] = 0.0;
-        #        for (i=0; i!=2; ++i) {
-        #                dlossd_z[j] += weight_v[i][j] * dlossd_hh[i];
-        #                weight_v[i][j] += learning_rate * dlossd_hh[i] * active_z[j]; 
-        #                //weight_v[i][j] = clip5(weight_v[i][j]);
-        #        }
-        #        dlossd_h[j] = dlossd_z[j] * dlrelu(active_h[j]); 
-        #}
-
-        #for (j=0; j!=3; ++j) {
-        #        for (i=0; i!=4; ++i) {
-        #                weight_u[i][j] += learning_rate * dlossd_h[i] * input[j]; 
-        #                //weight_u[i][j] = clip5(weight_u[i][j]);
-        #        }
-        #}
-
-
-    def render_main(self):
-        ccode = ''
-        ccode += '\n' + 'int main()'
-        ccode += '\n' + '{'
-        ccode += '\n' + '    initialize_weights();'
-        ccode += '\n' + '    printf("\\033[33m");'
-        ccode += '\n' + '    schwa();'
-        ccode += '\n' + '    printf("\\033[37m");'
-        ccode += '\n' + '}'
-        ccode += '\n'
+        d = self.switch_data[s_index]
+        I, H, O = d['nb_inputs'], d['nb_hidden'], d['nb_outputs']
+        ccode = (backward_template
+            .replace('/*S_INDEX*/'   , str(s_index))
+            .replace('/*NB_INPUTS*/' , str(I))
+            .replace('/*NB_HIDDEN*/' , str(H))
+            .replace('/*NB_OUTPUTS*/', str(O))
+            .replace('/*FORWARD_PASS*/', self.render_forward(s_index))
+        )
         return ccode
 
-    def render_definitions(self):
+    def render_update_baseline(self):
+        ccode = update_baseline_template
+        return ccode
+
+
+
+    def render_func_implementations(self):
         ccode = ''
         for context,data in self.functions.items():
             ccode += '\n' + '%s %s(%s)' % (
@@ -211,13 +156,12 @@ class Generator(object):
         return ccode
 
     def total_print(self):
-        ccode = ''
-        ccode += self.render_header()
-        ccode += self.render_declarations()
-        ccode += self.render_nns()
-        ccode += self.render_weight_initialization()
-        ccode += self.render_main()
-        ccode += self.render_definitions()
+        ccode = (main_template 
+                .replace('/*WEIGHT_INIT*/'                  , self.render_weight_init())
+                .replace('/*NN_GLOBALS*/'                   , self.render_nn_globals())
+                .replace('/*USER_FUNCTION_DECLARATIONS*/'   , self.render_func_declarations())
+                .replace('/*USER_FUNCTION_IMPLEMENTATIONS*/', self.render_func_implementations())
+        )
         return ccode
 
     def pprint(self, string, context):
@@ -298,7 +242,7 @@ class Generator(object):
                     ccode += self.functions[identifier]['cname']
                 else:
                     assert identifier in inherited_types_by_name, '%s not declared! (context %s)' % (identifier, context)
-                    ccode += identifier
+                    ccode += '_'+identifier
             else:
                 ccode += self.translate_expr(k, context, inherited_types_by_name)
         if tree.label == 'LOGICFACTOR':
@@ -317,14 +261,14 @@ class Generator(object):
                 identifier, typename = self.process_declaration(k)
                 assert (identifier not in types_by_name), 'variable %s already declared as %s!' % (identifier, types_by_name[identifier]) 
                 types_by_name[identifier] = typename
-                self.pprint('%s %s;' % (typename, identifier), context)
+                self.pprint('%s _%s;' % (typename, identifier), context)
             elif k.label == 'ASSIGNMENT':
                 identifier, expression = self.process_assignment(k) 
                 if identifier=='return':
                     self.pprint('return %s;' % self.translate_expr(expression, context, types_by_name), context)
                 else:
                     assert (identifier in types_by_name), '%s not declared! (context %s)' % (identifier, context)
-                    self.pprint('%s = %s;' % (identifier, self.translate_expr(expression, context, types_by_name)), context)
+                    self.pprint('_%s = %s;' % (identifier, self.translate_expr(expression, context, types_by_name)), context)
             elif k.label == 'IF': 
                 cond_cons_pairs = self.process_guarded_sequence(k)
                 for i, (cond, cons) in enumerate(cond_cons_pairs): 
@@ -364,6 +308,8 @@ class Generator(object):
                 self.pprint('input%d[%d] = 1.0;' % (s_index, len(arglist)), context)
                 for line in self.render_forward(s_index).split('\n'):
                     self.pprint(line.strip(), context)
+                for line in self.render_log_in_history(s_index).split('\n'):
+                    self.pprint(line.strip(), context)
                 self.pprint('switch (sample%d) {' % s_index, context)
                 for i, c in enumerate(cons_list):
                     self.pprint('case %d: {' % i, context)
@@ -387,20 +333,25 @@ class Generator(object):
                         context=new_context
                 )
             elif k.label == 'REWARD':
-                amount, = k.relevant_kids()
-                self.pprint('reward = %s;' % amount.get_source(), context)
-                # TODO: add backward code
+                expression, = k.relevant_kids()
+                self.pprint('reward = %s;' % self.translate_expr(expression, context, types_by_name), context)
+                for s_index in self.switch_data.keys():
+                    for line in self.render_backward(s_index).split('\n'):
+                        self.pprint(line.strip(), context)
+                for line in self.render_update_baseline().split('\n'):
+                    self.pprint(line.strip(), context)
+
             elif k.label == 'PRINT': 
                 identifier, = k.relevant_kids()
                 identifier = identifier.get_source()
                 assert (identifier in types_by_name), '%s not declared! (print context %s)' % (identifier, context)
                 typename = types_by_name[identifier]
                 if typename == 'float':
-                    self.pprint('printf("%s \\t %%f\\n", %s);' % (identifier, identifier), context)
+                    self.pprint('printf("%s \\t %%f\\n", _%s);' % (identifier, identifier), context)
                 elif typename == 'int':
-                    self.pprint('printf("%s \\t %%d\\n", %s);' % (identifier, identifier), context)
+                    self.pprint('printf("%s \\t %%d\\n", _%s);' % (identifier, identifier), context)
                 elif typename == 'bool':
-                    self.pprint('printf("%s \\t %%s\\n", %s?"true":"false");' % (identifier, identifier), context)
+                    self.pprint('printf("%s \\t %%s\\n", _%s?"true":"false");' % (identifier, identifier), context)
                 else:
                     assert False
             else:

@@ -1,7 +1,3 @@
-var moo : float;
-var too : float;
-moo = -5.0;
-too = -6.0;
 def compare(a:float, b:float): int 
 {
     switch (a, b) {
@@ -9,8 +5,26 @@ def compare(a:float, b:float): int
         ~> return = 1
     }
 };
+var aa : float;
+var bb : float;
 var c : int;
-c = compare(moo, too);
-$(5.0 + c);
-print c;
+var i : int;
+var r : float;
+
+i = 0;
+do {
+    i != 100 ~>
+        aa = 10.0;
+        bb = -10.0;
+        c = compare(aa, bb);
+        if {
+            (c==0) and (aa<=bb) ~> r=( 1.0)
+            (c==1) and (aa>=bb) ~> r=( 1.0)
+            (c==0) and (aa>=bb) ~> r=(-1.0)
+            (c==1) and (aa<=bb) ~> r=(-1.0)
+        };
+        print r;
+        $(r);
+        i = i+1
+};
 
