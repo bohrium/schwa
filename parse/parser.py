@@ -4,12 +4,8 @@
     descrp: Given backus-naur grammar and string, return parse tree.
 '''
 
-ANSI={
-    'BLUE':'\033[34m',
-    'RED':'\033[31m',
-    'YELLOW':'\033[33m',
-    'WHITE':'\033[37m',
-}
+from utils import color_print
+from preprocess import preprocess
 
 class ParseTree:
     ''' 
@@ -39,13 +35,13 @@ class ParseTree:
         elif not self.unroll and (not collapse or self.width()!=1):
             source = self.get_source()
             if len(source)>64+3:
-                source = source[:32] + ANSI['WHITE'] + '...' + ANSI['YELLOW'] + source[-32:]
-            source = ANSI['YELLOW'] + source + ANSI['WHITE']
-            print(delim*depth + ANSI['BLUE'] + self.label + ANSI['WHITE'] + '[' + source + ']')
+                source = source[:32] + '(WHITE)...(YELLOW)' + source[-32:]
+            source = '(YELLOW)' + source + '(WHITE)'
+            color_print(delim*depth + '(BLUE)' + self.label + '(WHITE)[' + source + ']')
             depth += 1
         for k in self.kids:
             if type(k)==type(''):
-                print(delim*depth + ANSI['RED'] + k + ANSI['WHITE'])
+                color_print(delim*depth + '(RED)' + k + '(WHITE)')
             else:
                 k.display(depth, delim, collapse)
 
@@ -72,7 +68,10 @@ class Text:
         return self.index == len(self.string)
 
 class ParserGenerator:
-    def __init__(self, specs, verbose=False):
+    def __init__(self, specs_filename, verbose=False):
+        with open(specs_filename) as f:
+            specs = f.read()
+
         self.rules_by_symbol = {}
         self.ignore = set([])
         self.unroll = set([])
@@ -163,14 +162,20 @@ class ParserGenerator:
 
 
 if __name__ == '__main__':
-    with open('schwa_grammar.txt') as f:
-        grammar = f.read()
-   
-    PG = ParserGenerator(grammar)
+    import sys
+    
+    if len(sys.argv) == 1:
+        grammar_filenm, program_filenm = 'grammars/schwa.grammar', 'toy_programs/dijkstra.schwa'
+    elif len(sys.argv) == 3:
+        grammar_filenm, program_filenm = sys.argv[1:3]
+    else:
+        assert len(sys.argv) in [1, 3], "expect 0 or 2 command line arguments"
+
+    PG = ParserGenerator(grammar_filenm)
     P = PG.parsers['MAIN']
-    with open('dijkstra.schwa') as f:
+    with open(program_filenm) as f:
         text = f.read()
-    text = ' '.join(text.split())
-    print(text)
+    text = preprocess(text)
+    color_print(text, color='WHITE')
     PT = P(Text(text))
     PT.display()

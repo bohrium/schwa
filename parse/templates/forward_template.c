@@ -19,8 +19,11 @@ for (i=0; i!=/*NB_OUTPUTS*/; ++i) {
 // sample based on distribution:
 randval = uniform();
 cumulative = 0.0;
+sample/*S_INDEX*/ = 0;
 for (i=0; i!=/*NB_OUTPUTS*/; ++i) {
     cumulative += active_exphh/*S_INDEX*/[i] / partition/*S_INDEX*/;
-    if (cumulative >= randval) { break; }
+    if (cumulative >= randval) {
+        sample/*S_INDEX*/ = i;
+        break;
+    }
 }
-sample/*S_INDEX*/ = i;

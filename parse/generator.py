@@ -1,52 +1,42 @@
 ''' author: samuel
-    change: 2019-05-18
+    change: 2019-05-20
     create: 2019-05-18
-    descrp: Translate Schwa to C
+    descrp: translate schwa to C
 '''
 
 from parser import ParseTree, Text, ParserGenerator
-import sys
-assert len(sys.argv)==3
-schwa_filenm, c_filenm = sys.argv[1:]
+from preprocess import preprocess
+from utils import color_print
 
-with open('schwa_grammar.txt') as f:
-    grammar = f.read()
-schwa_parser = ParserGenerator(grammar).parsers['MAIN']
-
-with open('main_template.c') as f:
-    main_template= f.read()
-with open('nn_globals_template.c') as f:
-    nn_globals_template = f.read()
-with open('weight_init_template.c') as f:
-    weight_init_template = f.read()
-with open('forward_template.c') as f:
-    forward_template = f.read()
-with open('log_in_history_template.c') as f:
-    log_in_history_template= f.read()
-with open('backward_template.c') as f:
-    backward_template = f.read()
-with open('update_baseline_template.c') as f:
-    update_baseline_template = f.read()
-
-
-
-
-ANSI={
-    'BLUE':'\033[34m',
-    'RED':'\033[31m',
-    'YELLOW':'\033[33m',
-    'WHITE':'\033[37m',
-}
+with open('templates/main_template.c') as f: main_template= f.read()
+with open('templates/nn_globals_template.c') as f: nn_globals_template = f.read()
+with open('templates/weight_init_template.c') as f: weight_init_template = f.read()
+with open('templates/forward_template.c') as f: forward_template = f.read()
+with open('templates/log_in_history_template.c') as f: log_in_history_template= f.read()
+with open('templates/backward_template.c') as f: backward_template = f.read()
+with open('templates/update_baseline_template.c') as f: update_baseline_template = f.read()
 
 class Generator(object):
-    def __init__(self, text):
+    def __init__(self, parse_tree):
         self.functions = {
             'main': {
                 'argtypes_by_name': [],
                 'outtype': 'int',
                 'lines': [],
                 'cname': '_main',
-            }
+            },
+            'uniform': {
+                'argtypes_by_name': [],
+                'outtype': 'float',
+                'lines': ['return uniform();'],
+                'cname': '_uniform',
+            },
+            'laplace': {
+                'argtypes_by_name': [],
+                'outtype': 'float',
+                'lines': ['return laplace();'],
+                'cname': '_laplace',
+            },
         }
         self.switch_data = {
             #0: {
@@ -56,11 +46,8 @@ class Generator(object):
             #},
         }
 
-        text = ' '.join(text.split())
-        tree = schwa_parser(Text(text))
-        #tree.display()
-        self.analyze_block(tree, context='main')
-        print(ANSI['WHITE'] + 'successful analysis!')
+        self.analyze_block(parse_tree, context='main')
+        color_print('successful analysis!', color='WHITE')
 
     def render_func_declarations(self):
         ccode = ''
@@ -141,7 +128,7 @@ class Generator(object):
             ccode += '\n' + '%s %s(%s)' % (
                 data['outtype'],
                 data['cname'],
-                ', '.join('%s %s'%(typename, identifier) for (identifier, typename) in data['argtypes_by_name'])
+                ', '.join('%s _%s'%(typename, identifier) for (identifier, typename) in data['argtypes_by_name'])
             )
             ccode += '\n' + '{'
             indent = 1
@@ -157,6 +144,13 @@ class Generator(object):
 
     def total_print(self):
         ccode = (main_template 
+                .replace('/*LEARNING_RATE*/'                , str(0.01))
+                .replace('/*RANDOM_SEED*/'                  , str(10729))
+                .replace('/*WEIGHT_INIT_SCALE*/'            , str(0.1))
+                .replace('/*WEIGHT_CLIP_SCALE*/'            , str(5.0))
+                .replace('/*HISTORY_CAPACITY*/'             , str(64))
+                .replace('/*BASELINE_AVG_TIMESCALE*/'       , str(100))
+                .replace('/*LRELU_LEAK*/'                   , str(0.2))
                 .replace('/*WEIGHT_INIT*/'                  , self.render_weight_init())
                 .replace('/*NN_GLOBALS*/'                   , self.render_nn_globals())
                 .replace('/*USER_FUNCTION_DECLARATIONS*/'   , self.render_func_declarations())
@@ -271,6 +265,7 @@ class Generator(object):
                     self.pprint('_%s = %s;' % (identifier, self.translate_expr(expression, context, types_by_name)), context)
             elif k.label == 'IF': 
                 cond_cons_pairs = self.process_guarded_sequence(k)
+                assert cond_cons_pairs, 'alternative constructs must have at least one branch'
                 for i, (cond, cons) in enumerate(cond_cons_pairs): 
                     self.pprint(
                         ('if' if i==0 else '} else if') +
@@ -278,6 +273,7 @@ class Generator(object):
                     , context)
                     self.analyze_block(cons, context, inherited_types_by_name=types_by_name)
                 self.pprint('} else {', context)
+                self.pprint('printf("FAILED ALTERNATIVE CONSTRUCT (%s etc)\\n");' % cond_cons_pairs[0][0].get_source(), context)
                 self.pprint('ABORT;', context)
                 self.pprint('}', context)
             elif k.label == 'DO': 
@@ -297,14 +293,16 @@ class Generator(object):
                 arglist, cons_list = self.process_switch(k)
                 for arg in arglist:
                     assert arg in types_by_name, 'switch arg %s unrecognized (context %s)' % (arg, context)
+                assert cons_list, 'switch constructs must have at least one branch'
                 s_index = len(self.switch_data) 
+                color_print('create switch %d...' % s_index, color='RED')
                 self.switch_data[s_index] = {
                         'nb_inputs': len(arglist)+1,
                         'nb_hidden': len(arglist)*len(cons_list),
                         'nb_outputs': len(cons_list),
                 }
                 for i,x in enumerate(arglist):
-                    self.pprint('input%d[%d] = %s;' % (s_index, i, x), context) 
+                    self.pprint('input%d[%d] = _%s;' % (s_index, i, x), context) 
                 self.pprint('input%d[%d] = 1.0;' % (s_index, len(arglist)), context)
                 for line in self.render_forward(s_index).split('\n'):
                     self.pprint(line.strip(), context)
@@ -320,7 +318,7 @@ class Generator(object):
                 identifier, argtypes_by_name, outtype, body = self.process_function(k)
                 new_context = identifier
                 assert (new_context not in self.functions), 'function %s already declared!'
-                print(ANSI['RED'] + 'create context %s' % new_context)
+                color_print('create context %s...' % new_context, color='RED')
                 self.functions[identifier] = {
                         'argtypes_by_name':argtypes_by_name,
                         'outtype': outtype,
@@ -334,6 +332,7 @@ class Generator(object):
                 )
             elif k.label == 'REWARD':
                 expression, = k.relevant_kids()
+                color_print('create reward %s...' % expression.get_source(), color='RED')
                 self.pprint('reward = %s;' % self.translate_expr(expression, context, types_by_name), context)
                 for s_index in self.switch_data.keys():
                     for line in self.render_backward(s_index).split('\n'):
@@ -359,8 +358,20 @@ class Generator(object):
 
    
 if __name__ == '__main__':
+    import sys
+    if len(sys.argv) == 1:
+        schwa_filenm, c_filenm, verbose = 'toy_programs/compare.schwa', 'compiled/compare.c', False 
+    elif len(sys.argv) == 3:
+        schwa_filenm, c_filenm = sys.argv[1:3]
+    else:
+        assert len(sys.argv) in [1, 3], "expect 0 or 2 command line arguments"
+
+    schwa_parser = ParserGenerator('grammars/schwa.grammar').parsers['MAIN']
     with open(schwa_filenm) as f:
         text = f.read()
-    G = Generator(text) 
+    text = preprocess(text)
+    tree = schwa_parser(Text(text))
+
+    G = Generator(tree) 
     with open(c_filenm, 'w') as f:
         f.write(G.total_print())

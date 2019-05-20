@@ -1,8 +1,10 @@
 dijkstra:
-	python generator.py dijkstra.schwa dijkstra.c
-	gcc dijkstra.c -o dijkstra.out -lm
+	python generator.py toy_programs/dijkstra.schwa compiled/dijkstra.c
+	gcc compiled/dijkstra.c -o dijkstra.out -lm
 	./dijkstra.out
+	rm dijkstra.out 
 compare:
-	python generator.py compare.schwa compare.c
-	gcc compare.c -o compare.out -lm
+	python generator.py toy_programs/compare.schwa compiled/compare.c
+	gcc compiled/compare.c -o compare.out -lm
 	./compare.out
+	rm compare.out 

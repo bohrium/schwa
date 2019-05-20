@@ -1,5 +1,3 @@
-// comment hello 
-
 var pi : float;
 pi = 3.1415926;
 def minus(a:float, b:float): float
@@ -22,8 +20,14 @@ def factorial(a:int): int
     } 
 }; 
 var answer:int;
+
+// should print 10:
 answer = gcd(70, 120);
 print answer;
+
+// should print 5040:
 answer = factorial(7);
 print answer;
+
+// should print 3.1415923:
 print pi 

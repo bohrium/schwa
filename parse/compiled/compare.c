@@ -9,9 +9,10 @@
 #include <math.h>
 #define LRELU_LEAK 0.2
 #define WEIGHT_INIT_SCALE 0.1
+#define WEIGHT_CLIP_SCALE 5.0
 #define LEARNING_RATE 0.01
-#define HISTORY_CAPACITY 100 
-#define BASELINE_AVG_TIMESCALE 10 
+#define HISTORY_CAPACITY 64 
+#define BASELINE_AVG_TIMESCALE 100 
 
 /*****************************************************************************/
 /*  0. HELPERS (DECLARATION)                                                 */
@@ -19,6 +20,9 @@
 #define ABORT exit(1)
 float uniform();
 float laplace();
+float lrelu(float h);
+float dlrelu(float h);
+float clip(float w);
 
 
 
@@ -27,7 +31,7 @@ float laplace();
 /*****************************************************************************/
 static int i, j, k;
 static float randval, cumulative;
-static float reward, baseline, signal;
+static float reward, reward_exp, reward_var, signal;
 
 
 
@@ -65,6 +69,8 @@ static int   history_len0;
 /*****************************************************************************/
 
 int _main();
+float _uniform();
+float _laplace();
 int _compare(float a, float b);
 
 
@@ -75,9 +81,11 @@ int _compare(float a, float b);
 /*****************************************************************************/
 int main()
 {
+    srand(10729);
     initialize_weights();
+    reward_exp = 0.0;
+    reward_var = 1.0;
     printf("\033[33m");
-    baseline = 0.0;
     _main();
     printf("\033[37m");
 }
@@ -103,6 +111,12 @@ float dlrelu(float h)
 {
     return (h<0 ? LRELU_LEAK : 1.0);
 } 
+float clip(float w)
+{
+    return (w!=w)   ? WEIGHT_INIT_SCALE * laplace() :
+           (w<-WEIGHT_CLIP_SCALE) ? -WEIGHT_CLIP_SCALE :
+           (w>WEIGHT_CLIP_SCALE) ? WEIGHT_CLIP_SCALE : w;
+}
 
 
 
@@ -134,84 +148,100 @@ int _main()
     float _bb;
     int _c;
     int _i;
+    int _j;
     float _r;
     _i = 0;
     while (true) {
-        if ((_i!=100)) {
-            _aa = 10.0;
-            _bb = -10.0;
-            _c = _compare(_aa,_bb);
-            if ((((_c==0)))&&(((_aa<=_bb)))) {
-                _r = (1.0);
-            } else if ((((_c==1)))&&(((_aa>=_bb)))) {
-                _r = (1.0);
-            } else if ((((_c==0)))&&(((_aa>=_bb)))) {
-                _r = (-1.0);
-            } else if ((((_c==1)))&&(((_aa<=_bb)))) {
-                _r = (-1.0);
-            } else {
-                ABORT;
+        if ((_i!=20)) {
+            _j = 0;
+            while (true) {
+                if ((_j!=1000)) {
+                    _aa = _uniform();
+                    _bb = _uniform();
+                    _c = _compare(_aa,_bb);
+                    if ((((_c==0)))&&(((_aa<=_bb)))) {
+                        _r = (1.0);
+                    } else if ((((_c==1)))&&(((_aa>=_bb)))) {
+                        _r = (1.0);
+                    } else if ((((_c==0)))&&(((_aa>=_bb)))) {
+                        _r = (-1.0);
+                    } else if ((((_c==1)))&&(((_aa<=_bb)))) {
+                        _r = (-1.0);
+                    } else {
+                        printf("FAILED ALTERNATIVE CONSTRUCT ((c==0) and (aa<=bb)  etc)\n");
+                        ABORT;
+                    }
+                    reward = (_r);
+                    if (history_len0 != 0) {
+                        for (k=0; k!= history_len0; ++k) {
+                            // forward pass from history:
+                            for (i=0; i!=3-1; ++i) {
+                                input0[i] = input_history0[k][i];
+                            }
+                            input0[3-1] = 1.0;
+                            // forward pass:
+                            for (i=0; i!=4; ++i) {
+                                active_h0[i] = 0.0;
+                                for (j=0; j!=3; ++j) {
+                                    active_h0[i] += weight_u0[i][j] * input0[j];
+                                }
+                                active_z0[i] = lrelu(active_h0[i]);
+                            }
+                            partition0 = 0.0;
+                            for (i=0; i!=2; ++i) {
+                                active_hh0[i] = 0.0;
+                                for (j=0; j!=4; ++j) {
+                                    active_hh0[i] += weight_v0[i][j] * active_z0[j];
+                                }
+                                active_exphh0[i] = exp(active_hh0[i]);
+                                partition0+= active_exphh0[i];
+                            }
+                            // sample based on distribution:
+                            randval = uniform();
+                            cumulative = 0.0;
+                            sample0 = 0;
+                            for (i=0; i!=2; ++i) {
+                                cumulative += active_exphh0[i] / partition0;
+                                if (cumulative >= randval) {
+                                    sample0 = i;
+                                    break;
+                                }
+                            }
+                            sample0 = sample_history0[k];
+                            // backward pass:
+                            signal = (reward - reward_exp) / history_len0;
+                            for (i=0; i!=2; ++i) {
+                                dlossd_hh0[i] = - signal * active_exphh0[i] / partition0;
+                            }
+                            dlossd_hh0[sample0] += signal;
+                            for (j=0; j!=4; ++j) {
+                                dlossd_z0[j] = 0.0;
+                                for (i=0; i!=2; ++i) {
+                                    dlossd_z0[j] += weight_v0[i][j] * dlossd_hh0[i];
+                                    weight_v0[i][j] += LEARNING_RATE * dlossd_hh0[i] * active_z0[j];
+                                    weight_v0[i][j] = clip(weight_v0[i][j]);
+                                }
+                                dlossd_h0[j] = dlossd_z0[j] * dlrelu(active_h0[j]);
+                            }
+                            for (j=0; j!=3; ++j) {
+                                for (i=0; i!=4; ++i) {
+                                    weight_u0[i][j] += LEARNING_RATE * dlossd_h0[i] * input0[j];
+                                    weight_u0[i][j] = clip(weight_u0[i][j]);
+                                }
+                            }
+                        }
+                        // clear history:
+                        history_len0 = 0;
+                    }
+                    // update baseline:
+                    reward_var += ((reward-reward_exp)*(reward-reward_exp) - reward_var) / BASELINE_AVG_TIMESCALE;
+                    reward_exp += (reward - reward_exp) / BASELINE_AVG_TIMESCALE;
+                    _j = _j+1;
+                } else {
+                    break;
+                }
             }
             printf("r \t %f\n", _r);
-            reward = (_r);
-            if (history_len0 != 0) {
-                for (k=0; k!= history_len0; ++k) {
-                    // forward pass from history:
-                    for (i=0; i!=3-1; ++i) {
-                        input0[i] = input_history0[k][i];
-                    }
-                    input0[3-1] = 1.0;
-                    // forward pass:
-                    for (i=0; i!=4; ++i) {
-                        active_h0[i] = 0.0;
-                        for (j=0; j!=3; ++j) {
-                            active_h0[i] += weight_u0[i][j] * input0[j];
-                        }
-                        active_z0[i] = lrelu(active_h0[i]);
-                    }
-                    partition0 = 0.0;
-                    for (i=0; i!=2; ++i) {
-                        active_hh0[i] = 0.0;
-                        for (j=0; j!=4; ++j) {
-                            active_hh0[i] += weight_v0[i][j] * active_z0[j];
-                        }
-                        active_exphh0[i] = exp(active_hh0[i]);
-                        partition0+= active_exphh0[i];
-                    }
-                    // sample based on distribution:
-                    randval = uniform();
-                    cumulative = 0.0;
-                    for (i=0; i!=2; ++i) {
-                        cumulative += active_exphh0[i] / partition0;
-                        if (cumulative >= randval) { break; }
-                    }
-                    sample0 = i;
-                    sample0 = sample_history0[k];
-                    // backward pass:
-                    signal = (reward - baseline) / history_len0;
-                    for (i=0; i!=2; ++i) {
-                        dlossd_hh0[i] = - signal * active_exphh0[i] / partition0;
-                    }
-                    dlossd_hh0[sample0] += signal;
-                    for (j=0; j!=4; ++j) {
-                        dlossd_z0[j] = 0.0;
-                        for (i=0; i!=2; ++i) {
-                            dlossd_z0[j] += weight_v0[i][j] * dlossd_hh0[i];
-                            weight_v0[i][j] += LEARNING_RATE * dlossd_hh0[i] * active_z0[j];
-                        }
-                        dlossd_h0[j] = dlossd_z0[j] * dlrelu(active_h0[j]);
-                    }
-                    for (j=0; j!=3; ++j) {
-                        for (i=0; i!=4; ++i) {
-                            weight_u0[i][j] += LEARNING_RATE * dlossd_h0[i] * input0[j];
-                        }
-                    }
-                }
-                // clear history:
-                history_len0 = 0;
-            }
-            // update baseline:
-            baseline += (reward - baseline) / BASELINE_AVG_TIMESCALE;
             _i = _i+1;
         } else {
             break;
@@ -219,10 +249,20 @@ int _main()
     }
 }
 
-int _compare(float a, float b)
+float _uniform()
 {
-    input0[0] = a;
-    input0[1] = b;
+    return uniform();
+}
+
+float _laplace()
+{
+    return laplace();
+}
+
+int _compare(float _a, float _b)
+{
+    input0[0] = _a;
+    input0[1] = _b;
     input0[2] = 1.0;
     // forward pass:
     for (i=0; i!=4; ++i) {
@@ -244,11 +284,14 @@ int _compare(float a, float b)
     // sample based on distribution:
     randval = uniform();
     cumulative = 0.0;
+    sample0 = 0;
     for (i=0; i!=2; ++i) {
         cumulative += active_exphh0[i] / partition0;
-        if (cumulative >= randval) { break; }
+        if (cumulative >= randval) {
+            sample0 = i;
+            break;
+        }
     }
-    sample0 = i;
     // update history:
     if (history_len0 == HISTORY_CAPACITY) {
         i = rand() % HISTORY_CAPACITY;

@@ -43,14 +43,21 @@ void initialize_weights();
 /*****************************************************************************/
 /*  3. NN GLOBALS                                                            */
 /*****************************************************************************/
-/*NN_GLOBALS*/
+
 
 
 
 /*****************************************************************************/
 /*  4. USER FUNCTIONS (DECLARATION)                                          */
 /*****************************************************************************/
-/*USER_FUNCTION_DECLARATIONS*/
+
+int _main();
+float _uniform();
+float _laplace();
+float _minus(float a, float b);
+int _gcd(int a, int b);
+int _factorial(int a);
+
 
 
 
@@ -95,10 +102,62 @@ float dlrelu(float h)
 /*****************************************************************************/
 void initialize_weights()
 {
-    /*WEIGHT_INIT*/
+    
 }
 
 /*****************************************************************************/
 /*  8. USER FUNCTIONS (IMPLEMENTATION)                                       */
 /*****************************************************************************/
-/*USER_FUNCTION_IMPLEMENTATIONS*/
+
+int _main()
+{
+    float _pi;
+    _pi = 3.1415926;
+    int _answer;
+    _answer = _gcd(70,120);
+    printf("answer \t %d\n", _answer);
+    _answer = _factorial(7);
+    printf("answer \t %d\n", _answer);
+    printf("pi \t %f\n", _pi);
+}
+
+float _uniform()
+{
+    return uniform();
+}
+
+float _laplace()
+{
+    return laplace();
+}
+
+float _minus(float _a, float _b)
+{
+    return _a-_b;
+}
+
+int _gcd(int _a, int _b)
+{
+    while (true) {
+        if ((!(_a<=_b))) {
+            _a = _a-_b;
+        } else if ((_a<_b)) {
+            _b = _b-_a;
+        } else {
+            break;
+        }
+    }
+    return _a;
+}
+
+int _factorial(int _a)
+{
+    if ((1<=_a)) {
+        return _factorial(_a-1)*_a;
+    } else if ((0==_a)) {
+        return 1;
+    } else {
+        ABORT;
+    }
+}
+
