@@ -5,31 +5,82 @@ def compare(a:float, b:float): int
         ~> return = 1
     }
 };
+
+//def compare(a:float, b:float): int 
+//{
+//    switch (a, b) {
+//        ~> if { a<b  ~> return = 0 
+//                a>=b ~> return = 1 }
+//        ~> if { a<b  ~> return = 1 
+//                a>=b ~> return = 0 }
+//    }
+//};
+
+def trytosort(a: float, b:float, c:float): float 
+{
+    var z : bool;
+    var t : float;
+    z = compare(a, b);
+    if {
+        z!=0 ~> skip 
+        z==0 ~>
+            t = a; 
+            a = b; 
+            b = t 
+    };
+ 
+    z = compare(b, c);
+    if {
+        z!=0  ~> skip 
+        z==0  ~>
+            t = b; 
+            b = c; 
+            c = t 
+    };
+ 
+    z = compare(a, b);
+    if {
+        z!=0  ~> skip
+        z==0  ~>
+            t = a; 
+            a = b; 
+            b = t 
+    };
+ 
+    if {
+            (a<=b and b<=c) ~> return = 1.0 
+        not (a<=b and b<=c) ~> return = 0.0 
+    }
+};
+
 var aa : float;
 var bb : float;
-var c : int;
+var cc : float;
+
+var tt : int;
+var t : int;
+
 var i : int;
-var j : int;
 var r : float;
+var avg : float;
+
+avg = 0.0;
+
+tt = 300000;
+t   = 30000;
 
 i = 0;
 do {
-    i != 20 ~>
-        j = 0;
-        do {
-            j != 1000 ~>
-                aa = uniform();
-                bb = uniform();
-                c = compare(aa, bb);
-                if {
-                    (c==0) and (aa<=bb) ~> r=( 1.0)
-                    (c==1) and (aa>=bb) ~> r=( 1.0)
-                    (c==0) and (aa>=bb) ~> r=(-1.0)
-                    (c==1) and (aa<=bb) ~> r=(-1.0)
-                };
-                $(r);
-                j = j+1
+    (i != tt) ~>
+        aa = uniform();
+        bb = uniform();
+        cc = uniform();
+        r = trytosort(aa, bb, cc);
+        avg = avg +  (r - avg) / t; 
+        $(r);
+        if {
+            (t*(i/t)==i) ~> print avg
+            not (t*(i/t)==i) ~> skip 
         };
-        print r;
         i = i+1
 }

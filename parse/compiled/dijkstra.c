@@ -9,9 +9,10 @@
 #include <math.h>
 #define LRELU_LEAK 0.2
 #define WEIGHT_INIT_SCALE 0.1
+#define WEIGHT_CLIP_SCALE 5.0
 #define LEARNING_RATE 0.01
-#define HISTORY_CAPACITY 100 
-#define BASELINE_AVG_TIMESCALE 10 
+#define HISTORY_CAPACITY 64 
+#define BASELINE_AVG_TIMESCALE 100 
 
 /*****************************************************************************/
 /*  0. HELPERS (DECLARATION)                                                 */
@@ -19,6 +20,9 @@
 #define ABORT exit(1)
 float uniform();
 float laplace();
+float lrelu(float h);
+float dlrelu(float h);
+float clip(float w);
 
 
 
@@ -27,7 +31,7 @@ float laplace();
 /*****************************************************************************/
 static int i, j, k;
 static float randval, cumulative;
-static float reward, baseline, signal;
+static float reward, reward_exp, reward_var, signal;
 
 
 
@@ -66,9 +70,11 @@ int _factorial(int a);
 /*****************************************************************************/
 int main()
 {
+    srand(10729);
     initialize_weights();
+    reward_exp = 0.0;
+    reward_var = 1.0;
     printf("\033[33m");
-    baseline = 0.0;
     _main();
     printf("\033[37m");
 }
@@ -94,6 +100,12 @@ float dlrelu(float h)
 {
     return (h<0 ? LRELU_LEAK : 1.0);
 } 
+float clip(float w)
+{
+    return (w!=w)   ? WEIGHT_INIT_SCALE * laplace() :
+           (w<-WEIGHT_CLIP_SCALE) ? -WEIGHT_CLIP_SCALE :
+           (w>WEIGHT_CLIP_SCALE) ? WEIGHT_CLIP_SCALE : w;
+}
 
 
 
@@ -157,6 +169,7 @@ int _factorial(int _a)
     } else if ((0==_a)) {
         return 1;
     } else {
+        printf("FAILED ALTERNATIVE CONSTRUCT (1 <= a  etc)\n");
         ABORT;
     }
 }

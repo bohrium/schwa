@@ -47,6 +47,7 @@ class Generator(object):
         }
 
         self.analyze_block(parse_tree, context='main')
+        #print(parse_tree.display())
         color_print('successful analysis!', color='WHITE')
 
     def render_func_declarations(self):
@@ -145,7 +146,7 @@ class Generator(object):
     def total_print(self):
         ccode = (main_template 
                 .replace('/*LEARNING_RATE*/'                , str(0.01))
-                .replace('/*RANDOM_SEED*/'                  , str(10729))
+                .replace('/*RANDOM_SEED*/'                  , str(1729))
                 .replace('/*WEIGHT_INIT_SCALE*/'            , str(0.1))
                 .replace('/*WEIGHT_CLIP_SCALE*/'            , str(5.0))
                 .replace('/*HISTORY_CAPACITY*/'             , str(64))
