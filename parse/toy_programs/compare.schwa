@@ -1,61 +1,70 @@
-def compare(a:float, b:float): int 
-{
-    switch (a, b) {
-        ~> return = 0 
-        ~> return = 1
-    }
-};
-
 //def compare(a:float, b:float): int 
 //{
 //    switch (a, b) {
-//        ~> if { a<b  ~> return = 0 
-//                a>=b ~> return = 1 }
-//        ~> if { a<b  ~> return = 1 
-//                a>=b ~> return = 0 }
+//        ~> return = 0 
+//        ~> return = 1
 //    }
 //};
 
-def trytosort(a: float, b:float, c:float): float 
+def compare(a:float, b:float): int 
+{
+    switch (a, b) {
+        ~> if { a<b  ~> return = 0 
+                a>=b ~> return = 1 }
+        ~> if { a<b  ~> return = 1 
+                a>=b ~> return = 0 }
+    }
+};
+
+def trytosort(a: float, b:float, c:float, d:float): float 
 {
     var z : bool;
     var t : float;
-    z = compare(a, b);
+
+    var j : int;
+    j = 0;
+
+    do {
+        j!=6 ~>
+            j = j+1;
+            switch (a, b, c, d) {
+                ~>  z = compare(a, b);
+                    if {
+                        z!=0 ~> skip 
+                        z==0 ~>
+                            t = a; 
+                            a = b; 
+                            b = t 
+                    }
+                ~>  z = compare(b, c);
+                    if {
+                        z!=0  ~> skip 
+                        z==0  ~>
+                            t = b; 
+                            b = c; 
+                            c = t 
+                    }
+                ~>  z = compare(c, d);
+                    if {
+                        z!=0  ~> skip 
+                        z==0  ~>
+                            t = c; 
+                            c = d; 
+                            d = t 
+                    }
+            };
+    }; 
+
     if {
-        z!=0 ~> skip 
-        z==0 ~>
-            t = a; 
-            a = b; 
-            b = t 
-    };
- 
-    z = compare(b, c);
-    if {
-        z!=0  ~> skip 
-        z==0  ~>
-            t = b; 
-            b = c; 
-            c = t 
-    };
- 
-    z = compare(a, b);
-    if {
-        z!=0  ~> skip
-        z==0  ~>
-            t = a; 
-            a = b; 
-            b = t 
-    };
- 
-    if {
-            (a<=b and b<=c) ~> return = 1.0 
-        not (a<=b and b<=c) ~> return = 0.0 
+            (a<=b and b<=c and c<=d) ~> return = 1.0
+        not (a<=b and b<=c and c<=d) ~> return = 0.0 
     }
 };
 
 var aa : float;
 var bb : float;
 var cc : float;
+var dd : float;
 
 var tt : int;
 var t : int;
@@ -66,8 +75,8 @@ var avg : float;
 
 avg = 0.0;
 
-tt = 300000;
-t   = 30000;
+tt = 100000;
+t   = 10000;
 
 i = 0;
 do {
@@ -75,7 +84,8 @@ do {
         aa = uniform();
         bb = uniform();
         cc = uniform();
-        r = trytosort(aa, bb, cc);
+        dd = uniform();
+        r = trytosort(aa, bb, cc, dd);
         avg = avg +  (r - avg) / t; 
         $(r);
         if {

@@ -60,6 +60,19 @@ static int   sample0;
 static float input_history0[HISTORY_CAPACITY][3-1];
 static int   sample_history0[HISTORY_CAPACITY];
 static int   history_len0;
+static float input1[5];
+static float weight_u1[12][5];    
+static float active_h1[12];       static float dlossd_h1[12];
+static float active_z1[12];       static float dlossd_z1[12];
+static float weight_v1[3][12];    
+static float active_hh1[3];      static float dlossd_hh1[3];
+static float active_exphh1[3];   
+static float partition1;
+static int   sample1;
+
+static float input_history1[HISTORY_CAPACITY][5-1];
+static int   sample_history1[HISTORY_CAPACITY];
+static int   history_len1;
 
 
 
@@ -72,7 +85,7 @@ int _main();
 float _uniform();
 float _laplace();
 int _compare(float a, float b);
-float _trytosort(float a, float b, float c);
+float _trytosort(float a, float b, float c, float d);
 
 
 
@@ -136,6 +149,16 @@ for (int i=0; i!=2; ++i) {
         weight_v0[i][j] = WEIGHT_INIT_SCALE * laplace();
     }
 }
+for (int i=0; i!=12; ++i) {
+    for (int j=0; j!=5; ++j) {
+        weight_u1[i][j] = WEIGHT_INIT_SCALE * laplace();
+    }
+}
+for (int i=0; i!=3; ++i) {
+    for (int j=0; j!=12; ++j) {
+        weight_v1[i][j] = WEIGHT_INIT_SCALE * laplace();
+    }
+}
 
 }
 
@@ -148,21 +171,23 @@ int _main()
     float _aa;
     float _bb;
     float _cc;
+    float _dd;
     int _tt;
     int _t;
     int _i;
     float _r;
     float _avg;
     _avg = 0.0;
-    _tt = 300000;
-    _t = 30000;
+    _tt = 100000;
+    _t = 10000;
     _i = 0;
     while (true) {
         if ((((_i!=_tt)))) {
             _aa = _uniform();
             _bb = _uniform();
             _cc = _uniform();
-            _r = _trytosort(_aa,_bb,_cc);
+            _dd = _uniform();
+            _r = _trytosort(_aa,_bb,_cc,_dd);
             _avg = _avg+(_r-_avg)/_t;
             reward = (_r);
             if (history_len0 != 0) {
@@ -225,6 +250,67 @@ int _main()
                 }
                 // clear history:
                 history_len0 = 0;
+            }
+            if (history_len1 != 0) {
+                for (k=0; k!= history_len1; ++k) {
+                    // forward pass from history:
+                    for (i=0; i!=5-1; ++i) {
+                        input1[i] = input_history1[k][i];
+                    }
+                    input1[5-1] = 1.0;
+                    // forward pass:
+                    for (i=0; i!=12; ++i) {
+                        active_h1[i] = 0.0;
+                        for (j=0; j!=5; ++j) {
+                            active_h1[i] += weight_u1[i][j] * input1[j];
+                        }
+                        active_z1[i] = lrelu(active_h1[i]);
+                    }
+                    partition1 = 0.0;
+                    for (i=0; i!=3; ++i) {
+                        active_hh1[i] = 0.0;
+                        for (j=0; j!=12; ++j) {
+                            active_hh1[i] += weight_v1[i][j] * active_z1[j];
+                        }
+                        active_exphh1[i] = exp(active_hh1[i]);
+                        partition1+= active_exphh1[i];
+                    }
+                    // sample based on distribution:
+                    randval = uniform();
+                    cumulative = 0.0;
+                    sample1 = 0;
+                    for (i=0; i!=3; ++i) {
+                        cumulative += active_exphh1[i] / partition1;
+                        if (cumulative >= randval) {
+                            sample1 = i;
+                            break;
+                        }
+                    }
+                    sample1 = sample_history1[k];
+                    // backward pass:
+                    signal = (reward - reward_exp) / history_len1;
+                    for (i=0; i!=3; ++i) {
+                        dlossd_hh1[i] = - signal * active_exphh1[i] / partition1;
+                    }
+                    dlossd_hh1[sample1] += signal;
+                    for (j=0; j!=12; ++j) {
+                        dlossd_z1[j] = 0.0;
+                        for (i=0; i!=3; ++i) {
+                            dlossd_z1[j] += weight_v1[i][j] * dlossd_hh1[i];
+                            weight_v1[i][j] += LEARNING_RATE * dlossd_hh1[i] * active_z1[j];
+                            weight_v1[i][j] = clip(weight_v1[i][j]);
+                        }
+                        dlossd_h1[j] = dlossd_z1[j] * dlrelu(active_h1[j]);
+                    }
+                    for (j=0; j!=5; ++j) {
+                        for (i=0; i!=12; ++i) {
+                            weight_u1[i][j] += LEARNING_RATE * dlossd_h1[i] * input1[j];
+                            weight_u1[i][j] = clip(weight_u1[i][j]);
+                        }
+                    }
+                }
+                // clear history:
+                history_len1 = 0;
             }
             // update baseline:
             reward_var += ((reward-reward_exp)*(reward-reward_exp) - reward_var) / BASELINE_AVG_TIMESCALE;
@@ -299,54 +385,129 @@ int _compare(float _a, float _b)
     sample_history0[i] = sample0;
     switch (sample0) {
         case 0: {
-            return 0;
+            if ((_a<_b)) {
+                return 0;
+            } else if ((_a>=_b)) {
+                return 1;
+            } else {
+                printf("FAILED ALTERNATIVE CONSTRUCT (a<b  etc)\n");
+                ABORT;
+            }
         } break;
         case 1: {
-            return 1;
+            if ((_a<_b)) {
+                return 1;
+            } else if ((_a>=_b)) {
+                return 0;
+            } else {
+                printf("FAILED ALTERNATIVE CONSTRUCT (a<b  etc)\n");
+                ABORT;
+            }
         } break;
     }
 }
 
-float _trytosort(float _a, float _b, float _c)
+float _trytosort(float _a, float _b, float _c, float _d)
 {
     bool _z;
     float _t;
-    _z = _compare(_a,_b);
-    if ((_z!=0)) {
-    } else if ((_z==0)) {
-        _t = _a;
-        _a = _b;
-        _b = _t;
-    } else {
-        printf("FAILED ALTERNATIVE CONSTRUCT (z!=0  etc)\n");
-        ABORT;
+    int _j;
+    _j = 0;
+    while (true) {
+        if ((_j!=6)) {
+            _j = _j+1;
+            input1[0] = _a;
+            input1[1] = _b;
+            input1[2] = _c;
+            input1[3] = _d;
+            input1[4] = 1.0;
+            // forward pass:
+            for (i=0; i!=12; ++i) {
+                active_h1[i] = 0.0;
+                for (j=0; j!=5; ++j) {
+                    active_h1[i] += weight_u1[i][j] * input1[j];
+                }
+                active_z1[i] = lrelu(active_h1[i]);
+            }
+            partition1 = 0.0;
+            for (i=0; i!=3; ++i) {
+                active_hh1[i] = 0.0;
+                for (j=0; j!=12; ++j) {
+                    active_hh1[i] += weight_v1[i][j] * active_z1[j];
+                }
+                active_exphh1[i] = exp(active_hh1[i]);
+                partition1+= active_exphh1[i];
+            }
+            // sample based on distribution:
+            randval = uniform();
+            cumulative = 0.0;
+            sample1 = 0;
+            for (i=0; i!=3; ++i) {
+                cumulative += active_exphh1[i] / partition1;
+                if (cumulative >= randval) {
+                    sample1 = i;
+                    break;
+                }
+            }
+            // update history:
+            if (history_len1 == HISTORY_CAPACITY) {
+                i = rand() % HISTORY_CAPACITY;
+            } else {
+                i = history_len1;
+                history_len1 += 1;
+            }
+            for (j=0; j!=5-1; ++j) {
+                input_history1[i][j] = input1[j];
+            }
+            sample_history1[i] = sample1;
+            switch (sample1) {
+                case 0: {
+                    _z = _compare(_a,_b);
+                    if ((_z!=0)) {
+                    } else if ((_z==0)) {
+                        _t = _a;
+                        _a = _b;
+                        _b = _t;
+                    } else {
+                        printf("FAILED ALTERNATIVE CONSTRUCT (z!=0  etc)\n");
+                        ABORT;
+                    }
+                } break;
+                case 1: {
+                    _z = _compare(_b,_c);
+                    if ((_z!=0)) {
+                    } else if ((_z==0)) {
+                        _t = _b;
+                        _b = _c;
+                        _c = _t;
+                    } else {
+                        printf("FAILED ALTERNATIVE CONSTRUCT (z!=0  etc)\n");
+                        ABORT;
+                    }
+                } break;
+                case 2: {
+                    _z = _compare(_c,_d);
+                    if ((_z!=0)) {
+                    } else if ((_z==0)) {
+                        _t = _c;
+                        _c = _d;
+                        _d = _t;
+                    } else {
+                        printf("FAILED ALTERNATIVE CONSTRUCT (z!=0  etc)\n");
+                        ABORT;
+                    }
+                } break;
+            }
+        } else {
+            break;
+        }
     }
-    _z = _compare(_b,_c);
-    if ((_z!=0)) {
-    } else if ((_z==0)) {
-        _t = _b;
-        _b = _c;
-        _c = _t;
-    } else {
-        printf("FAILED ALTERNATIVE CONSTRUCT (z!=0  etc)\n");
-        ABORT;
-    }
-    _z = _compare(_a,_b);
-    if ((_z!=0)) {
-    } else if ((_z==0)) {
-        _t = _a;
-        _a = _b;
-        _b = _t;
-    } else {
-        printf("FAILED ALTERNATIVE CONSTRUCT (z!=0  etc)\n");
-        ABORT;
-    }
-    if ((((_a<=_b)&&(_b<=_c)))) {
+    if ((((_a<=_b)&&(_b<=_c)&&(_c<=_d)))) {
         return 1.0;
-    } else if ((!(((_a<=_b)&&(_b<=_c))))) {
+    } else if ((!(((_a<=_b)&&(_b<=_c)&&(_c<=_d))))) {
         return 0.0;
     } else {
-        printf("FAILED ALTERNATIVE CONSTRUCT ((a<=b and b<=c)  etc)\n");
+        printf("FAILED ALTERNATIVE CONSTRUCT ((a<=b and b<=c and c<=d)  etc)\n");
         ABORT;
     }
 }
