@@ -10,7 +10,7 @@
 #define LRELU_LEAK 0.2
 #define WEIGHT_INIT_SCALE 0.1
 #define WEIGHT_CLIP_SCALE 5.0
-#define LEARNING_RATE 0.01
+#define LEARNING_RATE 0.05
 #define HISTORY_CAPACITY 64 
 #define BASELINE_AVG_TIMESCALE 100 
 
@@ -95,7 +95,7 @@ float _trytosort(float a, float b, float c, float d);
 /*****************************************************************************/
 int main()
 {
-    srand(1729);
+    srand(17029);
     initialize_weights();
     reward_exp = 0.0;
     reward_var = 1.0;
@@ -168,28 +168,28 @@ for (int i=0; i!=3; ++i) {
 
 int _main()
 {
-    float _aa;
-    float _bb;
-    float _cc;
-    float _dd;
+    float _sortsuccess;
+    float _acc;
+    _acc = 0.0;
+    int _counter;
     int _tt;
+    _tt = 50000;
     int _t;
-    int _i;
-    float _r;
-    float _avg;
-    _avg = 0.0;
-    _tt = 100000;
-    _t = 10000;
-    _i = 0;
+    _t = 5000;
+    _counter = 0;
     while (true) {
-        if ((((_i!=_tt)))) {
-            _aa = _uniform();
-            _bb = _uniform();
-            _cc = _uniform();
-            _dd = _uniform();
-            _r = _trytosort(_aa,_bb,_cc,_dd);
-            _avg = _avg+(_r-_avg)/_t;
-            reward = (_r);
+        if ((((_counter!=_tt)))) {
+            _counter = _counter+1;
+            float _a;
+            _a = _uniform();
+            float _b;
+            _b = _uniform();
+            float _c;
+            _c = _uniform();
+            float _d;
+            _d = _uniform();
+            _sortsuccess = _trytosort(_a,_b,_c,_d);
+            reward = (_sortsuccess);
             if (history_len0 != 0) {
                 for (k=0; k!= history_len0; ++k) {
                     // forward pass from history:
@@ -315,14 +315,14 @@ int _main()
             // update baseline:
             reward_var += ((reward-reward_exp)*(reward-reward_exp) - reward_var) / BASELINE_AVG_TIMESCALE;
             reward_exp += (reward - reward_exp) / BASELINE_AVG_TIMESCALE;
-            if ((((_t*(_i/_t)==_i)))) {
-                printf("avg \t %f\n", _avg);
-            } else if ((!(((_t*(_i/_t)==_i))))) {
+            _acc = _acc+(_sortsuccess-_acc)/_t;
+            if ((((_t*(_counter/_t)==_counter)))) {
+                printf("acc \t %f\n", _acc);
+            } else if ((!(((_t*(_counter/_t)==_counter))))) {
             } else {
-                printf("FAILED ALTERNATIVE CONSTRUCT ((t*(i/t)==i)  etc)\n");
+                printf("FAILED ALTERNATIVE CONSTRUCT ((t*(counter/t)==counter)  etc)\n");
                 ABORT;
             }
-            _i = _i+1;
         } else {
             break;
         }
@@ -395,12 +395,12 @@ int _compare(float _a, float _b)
             }
         } break;
         case 1: {
-            if ((_a<_b)) {
-                return 1;
-            } else if ((_a>=_b)) {
+            if ((_a>_b)) {
                 return 0;
+            } else if ((_a<=_b)) {
+                return 1;
             } else {
-                printf("FAILED ALTERNATIVE CONSTRUCT (a<b  etc)\n");
+                printf("FAILED ALTERNATIVE CONSTRUCT (a>b  etc)\n");
                 ABORT;
             }
         } break;
@@ -409,13 +409,13 @@ int _compare(float _a, float _b)
 
 float _trytosort(float _a, float _b, float _c, float _d)
 {
-    bool _z;
-    float _t;
-    int _j;
-    _j = 0;
+    bool _issorted;
+    float _temp;
+    int _counter;
+    _counter = 0;
     while (true) {
-        if ((_j!=6)) {
-            _j = _j+1;
+        if ((_counter!=6)) {
+            _counter = _counter+1;
             input1[0] = _a;
             input1[1] = _b;
             input1[2] = _c;
@@ -462,38 +462,38 @@ float _trytosort(float _a, float _b, float _c, float _d)
             sample_history1[i] = sample1;
             switch (sample1) {
                 case 0: {
-                    _z = _compare(_a,_b);
-                    if ((_z!=0)) {
-                    } else if ((_z==0)) {
-                        _t = _a;
+                    _issorted = _compare(_a,_b);
+                    if ((_issorted!=0)) {
+                    } else if ((_issorted==0)) {
+                        _temp = _a;
                         _a = _b;
-                        _b = _t;
+                        _b = _temp;
                     } else {
-                        printf("FAILED ALTERNATIVE CONSTRUCT (z!=0  etc)\n");
+                        printf("FAILED ALTERNATIVE CONSTRUCT (issorted!=0  etc)\n");
                         ABORT;
                     }
                 } break;
                 case 1: {
-                    _z = _compare(_b,_c);
-                    if ((_z!=0)) {
-                    } else if ((_z==0)) {
-                        _t = _b;
+                    _issorted = _compare(_b,_c);
+                    if ((_issorted!=0)) {
+                    } else if ((_issorted==0)) {
+                        _temp = _b;
                         _b = _c;
-                        _c = _t;
+                        _c = _temp;
                     } else {
-                        printf("FAILED ALTERNATIVE CONSTRUCT (z!=0  etc)\n");
+                        printf("FAILED ALTERNATIVE CONSTRUCT (issorted!=0  etc)\n");
                         ABORT;
                     }
                 } break;
                 case 2: {
-                    _z = _compare(_c,_d);
-                    if ((_z!=0)) {
-                    } else if ((_z==0)) {
-                        _t = _c;
+                    _issorted = _compare(_c,_d);
+                    if ((_issorted!=0)) {
+                    } else if ((_issorted==0)) {
+                        _temp = _c;
                         _c = _d;
-                        _d = _t;
+                        _d = _temp;
                     } else {
-                        printf("FAILED ALTERNATIVE CONSTRUCT (z!=0  etc)\n");
+                        printf("FAILED ALTERNATIVE CONSTRUCT (issorted!=0  etc)\n");
                         ABORT;
                     }
                 } break;

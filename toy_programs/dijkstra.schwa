@@ -1,0 +1,70 @@
+// author: samtenka
+// change: 2019-05-21
+// create: 2019-05-20
+// descrp: demonstrate classical (non-learning) syntax and semantics of schwa
+
+
+
+//---------------------------------------------------------------------------//
+//  ALTERNATIVE CONSTRUCT: following Dijkstra's notion of guarded commands,  //
+//  we regard an if-statement as taking any branch whose guard is satisfied  //
+//  (or aborting the program if none is satisfied).  Thus, the following     //
+//  will (as desired) complain if fed a negative value.                      //
+//---------------------------------------------------------------------------//
+def factorial(a:int): int
+{
+    if {
+        1 <= a ~> return = a*factorial(a-1)
+        0 == a ~> return = 1
+    } 
+};
+
+
+
+//---------------------------------------------------------------------------//
+//  REPETITIVE CONSTRUCT: Dijkstra's guarded commands offer an elegant       //
+//  expression of Euclid's algorithm for greatest common divisor.  Our       //
+//  do-statements select any branch whose guard is true until all are false. //
+//---------------------------------------------------------------------------//
+def gcd(a:int, b:int): int
+{
+    do {
+        a > b ~> a = a-b
+        a < b ~> b = b-a
+    };
+    return = a;
+};
+ 
+
+
+//---------------------------------------------------------------------------//
+//  NAMES, TYPES, AND PRINTING: schwa supports ints and floats and (flakily) //
+//  for bools.  The rudimentary print functionality prints just one variable //
+//  (not an expression) and has hard-coded formatting based on type.         //
+//      Variable and function names consist of lowercase alphabet elements   // 
+//  and underscores; they may NOT begin with any keyword (def, do, false, if,//
+//  print, skip, true, var).                                                 //
+//---------------------------------------------------------------------------//
+var answer : int;
+answer = 3; 
+
+var pi : float;
+pi = 3.1415926;
+
+// should print 10:
+answer = gcd(70, 120);
+print answer;
+
+// should print 5040:
+answer = factorial(7);
+print answer;
+
+// should print 3.1415923:
+print pi;
+
+// should produce error message, aborting program:
+answer = factorial(-1);
+
+// should never be run due to previous abortion:
+print answer
+

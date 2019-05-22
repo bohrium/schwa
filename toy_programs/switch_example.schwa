@@ -1,0 +1,51 @@
+// author: samtenka
+// change: 2019-05-21
+// create: 2019-05-21
+// descrp: demonstrate schwa's novel feature: learnable switches
+
+
+def try_to_subtract(x:float, y:float) : float
+{
+    var answer : float;
+    answer = 0;
+
+    var complete : int;
+    complete = 0;
+
+    do {
+        (complete != 1) ~> skip
+            switch (x, y, answer) {
+                ~> answer = answer - 1.0
+                ~> complete = 1
+                ~> answer = answer + 1.0
+            }
+    };
+
+    return = answer
+}; 
+
+var counter : int;
+var tt : int;   tt = 500;
+var t : int;    t  =  50;
+
+// repeat many times:
+counter = 0;
+do {
+    (counter != tt) ~>
+        counter = counter+1;
+
+        // generate a random inputs
+        var x : float;  x = 2*uniform() - 1;
+        var y : float;  y = 2*uniform() - 1;
+        var z : float;  z = try_to_subtract(x, y);
+
+        var diff : float;
+        diff = z - (x-y);
+        $( - diff * diff );
+
+        // if counter==0 (mod t), print accuract
+        if {
+            (t*(counter/t)==counter) ~> print diff
+            not (t*(counter/t)==counter) ~> skip 
+        }
+}

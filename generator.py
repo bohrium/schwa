@@ -145,8 +145,8 @@ class Generator(object):
 
     def total_print(self):
         ccode = (main_template 
-                .replace('/*LEARNING_RATE*/'                , str(0.01))
-                .replace('/*RANDOM_SEED*/'                  , str(1729))
+                .replace('/*LEARNING_RATE*/'                , str(0.05))
+                .replace('/*RANDOM_SEED*/'                  , str(17029))
                 .replace('/*WEIGHT_INIT_SCALE*/'            , str(0.1))
                 .replace('/*WEIGHT_CLIP_SCALE*/'            , str(5.0))
                 .replace('/*HISTORY_CAPACITY*/'             , str(64))

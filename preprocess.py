@@ -7,5 +7,5 @@
 def preprocess(text):
     assert '\t' not in text, "schwa forbids tab characters" 
     lines = text.split('\n')
-    uncommented = [l for l in lines if not l.startswith('//')]
+    uncommented = [l for l in lines if not l.strip().startswith('//')]
     return ' '.join(' '.join(uncommented).split())

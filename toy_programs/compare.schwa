@@ -1,0 +1,125 @@
+// author: samtenka
+// change: 2019-05-21
+// create: 2019-05-20
+// descrp: learn to compare floating points and to sort a 4-element list 
+
+
+
+//---------------------------------------------------------------------------//
+//  COMPARE: below, we implement a function that learns to select between two//
+//  options based on its inputs.  In this simple task, the top option is     //
+//  always correct (and the bottom one wrong).                               //
+//---------------------------------------------------------------------------//
+def compare(a:float, b:float): int 
+{
+    // choose based on inputs a and b...
+    switch (a, b) {
+        // ...whether to sort by < (which is correct for this toy task)... 
+        ~> if { a<b  ~> return = 0 
+                a>=b ~> return = 1 }
+        // ...or to sort by > (which here is incorrect)
+        ~> if { a>b  ~> return = 0 
+                a<=b ~> return = 1 }
+    }
+};
+
+
+
+//---------------------------------------------------------------------------//
+//  TRYTOSORT: here we implement function that learns to select between three//
+//  options based on a changing local state.  In this task, the best choice  //
+//  depends strongly on that state.                                          //
+//---------------------------------------------------------------------------//
+
+def trytosort(a: float, b:float, c:float, d:float): float 
+{
+    var issorted : bool;
+    var temp : float;
+
+    var counter : int;
+    counter = 0;
+
+    // 6 times:
+    do {
+        counter!=6  ~>
+            counter = counter+1;
+            // choose based on the current list... 
+            switch (a, b, c, d) {
+                // ...whether to sort (a, b) based on the learned comparator...
+                ~>  issorted = compare(a, b);
+                    if {
+                        issorted!=0 ~> skip 
+                        issorted==0 ~>
+                            temp = a; 
+                            a = b; 
+                            b = temp 
+                    }
+                // ...or to sort (b, c) based on the learned comparator...
+                ~>  issorted = compare(b, c);
+                    if {
+                        issorted!=0  ~> skip 
+                        issorted==0  ~>
+                            temp = b; 
+                            b = c; 
+                            c = temp
+                    }
+                // ...or to sort (c, d) based on the learned comparator
+                ~>  issorted = compare(c, d);
+                    if {
+                        issorted!=0  ~> skip 
+                        issorted==0  ~>
+                            temp = c; 
+                            c = d; 
+                            d = temp
+                    }
+            };
+    }; 
+
+    // return whether or not sorting succeeds (wrt the true comparator)
+    if {
+            (a<=b and b<=c and c<=d) ~> return = 1.0
+        not (a<=b and b<=c and c<=d) ~> return = 0.0 
+    }
+};
+
+
+
+//---------------------------------------------------------------------------//
+//  $(SORTSUCCESS): the loop below uses and trains the learnable functions   //
+//  defined above.  The crucial statement is $(sortsuccess), which compiles  //
+//  to learning updates to the internal parameters of the above switches.    //
+//---------------------------------------------------------------------------//
+
+var sortsuccess : float;
+var acc : float;    acc = 0.0;
+
+var counter : int;
+var tt : int;   tt = 50000;
+var t : int;    t  =  5000;
+
+// repeat many times:
+counter = 0;
+do {
+    (counter != tt) ~>
+        counter = counter+1;
+
+        // generate a random list
+        var a : float;  a = uniform();
+        var b : float;  b = uniform();
+        var c : float;  c = uniform();
+        var d : float;  d = uniform();
+
+        // attempt to sort the list, noting whether the sort is successful...
+        sortsuccess = trytosort(a, b, c, d);
+        // ...and learn from that signal to do better next time
+        $(sortsuccess);
+
+        // compute accuracy as moving average
+        acc = acc + (sortsuccess - acc) / t; 
+
+        // if counter==0 (mod t), print accuracy
+        if {
+            (t*(counter/t)==counter) ~> print acc
+            not (t*(counter/t)==counter) ~> skip 
+        }
+}

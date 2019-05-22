@@ -10,7 +10,7 @@
 #define LRELU_LEAK 0.2
 #define WEIGHT_INIT_SCALE 0.1
 #define WEIGHT_CLIP_SCALE 5.0
-#define LEARNING_RATE 0.01
+#define LEARNING_RATE 0.05
 #define HISTORY_CAPACITY 64 
 #define BASELINE_AVG_TIMESCALE 100 
 
@@ -58,9 +58,8 @@ void initialize_weights();
 int _main();
 float _uniform();
 float _laplace();
-float _minus(float a, float b);
-int _gcd(int a, int b);
 int _factorial(int a);
+int _gcd(int a, int b);
 
 
 
@@ -70,7 +69,7 @@ int _factorial(int a);
 /*****************************************************************************/
 int main()
 {
-    srand(10729);
+    srand(17029);
     initialize_weights();
     reward_exp = 0.0;
     reward_var = 1.0;
@@ -123,14 +122,17 @@ void initialize_weights()
 
 int _main()
 {
+    int _answer;
+    _answer = 3;
     float _pi;
     _pi = 3.1415926;
-    int _answer;
     _answer = _gcd(70,120);
     printf("answer \t %d\n", _answer);
     _answer = _factorial(7);
     printf("answer \t %d\n", _answer);
     printf("pi \t %f\n", _pi);
+    _answer = _factorial(-1);
+    printf("answer \t %d\n", _answer);
 }
 
 float _uniform()
@@ -143,15 +145,22 @@ float _laplace()
     return laplace();
 }
 
-float _minus(float _a, float _b)
+int _factorial(int _a)
 {
-    return _a-_b;
+    if ((1<=_a)) {
+        return _a*_factorial(_a-1);
+    } else if ((0==_a)) {
+        return 1;
+    } else {
+        printf("FAILED ALTERNATIVE CONSTRUCT (1 <= a  etc)\n");
+        ABORT;
+    }
 }
 
 int _gcd(int _a, int _b)
 {
     while (true) {
-        if ((!(_a<=_b))) {
+        if ((_a>_b)) {
             _a = _a-_b;
         } else if ((_a<_b)) {
             _b = _b-_a;
@@ -160,17 +169,5 @@ int _gcd(int _a, int _b)
         }
     }
     return _a;
-}
-
-int _factorial(int _a)
-{
-    if ((1<=_a)) {
-        return _factorial(_a-1)*_a;
-    } else if ((0==_a)) {
-        return 1;
-    } else {
-        printf("FAILED ALTERNATIVE CONSTRUCT (1 <= a  etc)\n");
-        ABORT;
-    }
 }
 
