@@ -14,6 +14,12 @@
 #define HISTORY_CAPACITY 64 
 #define BASELINE_AVG_TIMESCALE 100 
 
+
+#define _2__main() _main()
+#define _2__uniform() _uniform()
+#define _2__laplace() _laplace()
+
+
 /*****************************************************************************/
 /*  0. HELPERS (DECLARATION)                                                 */
 /*****************************************************************************/
@@ -72,7 +78,7 @@ int main()
     reward_exp = 0.0;
     reward_var = 1.0;
     printf("\033[33m");
-    _main();
+    _2__main();
     printf("\033[37m");
 }
 

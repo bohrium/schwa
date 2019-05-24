@@ -14,6 +14,15 @@
 #define HISTORY_CAPACITY 64 
 #define BASELINE_AVG_TIMESCALE 100 
 
+
+#define _2__main() _main()
+#define _2__uniform() _uniform()
+#define _2__laplace() _laplace()
+#define _2__compare(a, b) _compare((a), (b))
+#define _2__compare_and_swap(a, b) _compare_and_swap((&a), (&b))
+#define _2__trytosort(a, b, c, d) _trytosort((a), (b), (c), (d))
+
+
 /*****************************************************************************/
 /*  0. HELPERS (DECLARATION)                                                 */
 /*****************************************************************************/
@@ -84,8 +93,9 @@ static int   history_len1;
 int _main();
 float _uniform();
 float _laplace();
-int _compare(float a, float b);
-float _trytosort(float a, float b, float c, float d);
+int _compare(float _a, float _b);
+int _compare_and_swap( float* _a,  float* _b);
+float _trytosort(float _a, float _b, float _c, float _d);
 
 
 
@@ -100,7 +110,7 @@ int main()
     reward_exp = 0.0;
     reward_var = 1.0;
     printf("\033[33m");
-    _main();
+    _2__main();
     printf("\033[37m");
 }
 
@@ -181,14 +191,14 @@ int _main()
         if ((((_counter!=_tt)))) {
             _counter = _counter+1;
             float _a;
-            _a = _uniform();
+            _a = _2__uniform();
             float _b;
-            _b = _uniform();
+            _b = _2__uniform();
             float _c;
-            _c = _uniform();
+            _c = _2__uniform();
             float _d;
-            _d = _uniform();
-            _sortsuccess = _trytosort(_a,_b,_c,_d);
+            _d = _2__uniform();
+            _sortsuccess = _2__trytosort(_a,_b,_c,_d);
             reward = (_sortsuccess);
             if (history_len0 != 0) {
                 for (k=0; k!= history_len0; ++k) {
@@ -407,6 +417,23 @@ int _compare(float _a, float _b)
     }
 }
 
+int _compare_and_swap( float* _a,  float* _b)
+{
+    int _issorted;
+    int _temp;
+    _issorted = _2__compare((*_a),(*_b));
+    if ((_issorted!=0)) {
+    } else if ((_issorted==0)) {
+        _temp = (*_a);
+        *_a = (*_b);
+        *_b = _temp;
+    } else {
+        printf("FAILED ALTERNATIVE CONSTRUCT (issorted!=0  etc)\n");
+        ABORT;
+    }
+    return _issorted;
+}
+
 float _trytosort(float _a, float _b, float _c, float _d)
 {
     bool _issorted;
@@ -462,40 +489,13 @@ float _trytosort(float _a, float _b, float _c, float _d)
             sample_history1[i] = sample1;
             switch (sample1) {
                 case 0: {
-                    _issorted = _compare(_a,_b);
-                    if ((_issorted!=0)) {
-                    } else if ((_issorted==0)) {
-                        _temp = _a;
-                        _a = _b;
-                        _b = _temp;
-                    } else {
-                        printf("FAILED ALTERNATIVE CONSTRUCT (issorted!=0  etc)\n");
-                        ABORT;
-                    }
+                    _issorted = _2__compare_and_swap(_a,_b);
                 } break;
                 case 1: {
-                    _issorted = _compare(_b,_c);
-                    if ((_issorted!=0)) {
-                    } else if ((_issorted==0)) {
-                        _temp = _b;
-                        _b = _c;
-                        _c = _temp;
-                    } else {
-                        printf("FAILED ALTERNATIVE CONSTRUCT (issorted!=0  etc)\n");
-                        ABORT;
-                    }
+                    _issorted = _2__compare_and_swap(_b,_c);
                 } break;
                 case 2: {
-                    _issorted = _compare(_c,_d);
-                    if ((_issorted!=0)) {
-                    } else if ((_issorted==0)) {
-                        _temp = _c;
-                        _c = _d;
-                        _d = _temp;
-                    } else {
-                        printf("FAILED ALTERNATIVE CONSTRUCT (issorted!=0  etc)\n");
-                        ABORT;
-                    }
+                    _issorted = _2__compare_and_swap(_c,_d);
                 } break;
             }
         } else {

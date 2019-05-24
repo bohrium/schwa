@@ -56,7 +56,8 @@ class Generator(object):
             ccode += '\n' + '%s %s(%s);' % (
                 data['outtype'],
                 data['cname'],
-                ', '.join('%s %s'%(tpnm, iden) for (iden, tpnm) in data['argtypes_by_name'])
+                ', '.join('%s* _%s'%(typename.replace('ref', ''), identifier) if typename.startswith('ref ') else
+                          '%s _%s'%(typename, identifier) for (identifier, typename) in data['argtypes_by_name'])
             )
         ccode += '\n'
         return ccode
@@ -121,7 +122,18 @@ class Generator(object):
         ccode = update_baseline_template
         return ccode
 
-
+    def render_func_macros(self):
+        ccode = ''
+        for context,data in self.functions.items():
+            ccode += '\n' + '#define _2_%s(%s) %s(%s)' % (
+                    data['cname'],
+                    ', '.join('%s'%identifier for identifier, typename in data['argtypes_by_name']),
+                    data['cname'],
+                    ', '.join('(&%s)'%identifier if typename.startswith('ref ') else
+                              '(%s)'%identifier for identifier, typename in data['argtypes_by_name']),
+                )
+        ccode += '\n'
+        return ccode
 
     def render_func_implementations(self):
         ccode = ''
@@ -129,7 +141,8 @@ class Generator(object):
             ccode += '\n' + '%s %s(%s)' % (
                 data['outtype'],
                 data['cname'],
-                ', '.join('%s _%s'%(typename, identifier) for (identifier, typename) in data['argtypes_by_name'])
+                ', '.join('%s* _%s'%(typename.replace('ref', ''), identifier) if typename.startswith('ref ') else
+                          '%s _%s'%(typename, identifier) for (identifier, typename) in data['argtypes_by_name'])
             )
             ccode += '\n' + '{'
             indent = 1
@@ -145,6 +158,7 @@ class Generator(object):
 
     def total_print(self):
         ccode = (main_template 
+                .replace('/*MACROS*/'                       , self.render_func_macros())
                 .replace('/*LEARNING_RATE*/'                , str(0.05))
                 .replace('/*RANDOM_SEED*/'                  , str(17029))
                 .replace('/*WEIGHT_INIT_SCALE*/'            , str(0.1))
@@ -234,10 +248,13 @@ class Generator(object):
             elif k.label == 'IDENTIFIERLOOP':
                 identifier = k.get_source()
                 if identifier in self.functions:
-                    ccode += self.functions[identifier]['cname']
+                    ccode += '_2_'+self.functions[identifier]['cname']
                 else:
                     assert identifier in inherited_types_by_name, '%s not declared! (context %s)' % (identifier, context)
-                    ccode += '_'+identifier
+                    if inherited_types_by_name[identifier].startswith('ref '):
+                        ccode += '(*_'+identifier+')'
+                    else:
+                        ccode += '_'+identifier
             else:
                 ccode += self.translate_expr(k, context, inherited_types_by_name)
         if tree.label == 'LOGICFACTOR':
@@ -263,7 +280,10 @@ class Generator(object):
                     self.pprint('return %s;' % self.translate_expr(expression, context, types_by_name), context)
                 else:
                     assert (identifier in types_by_name), '%s not declared! (context %s)' % (identifier, context)
-                    self.pprint('_%s = %s;' % (identifier, self.translate_expr(expression, context, types_by_name)), context)
+                    if types_by_name[identifier].startswith('ref '):
+                        self.pprint('*_%s = %s;' % (identifier, self.translate_expr(expression, context, types_by_name)), context)
+                    else:
+                        self.pprint('_%s = %s;' % (identifier, self.translate_expr(expression, context, types_by_name)), context)
             elif k.label == 'IF': 
                 cond_cons_pairs = self.process_guarded_sequence(k)
                 assert cond_cons_pairs, 'alternative constructs must have at least one branch'

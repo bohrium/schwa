@@ -13,3 +13,8 @@ switch_example:
 	gcc compiled/switch_example.c -o switch_example.out -lm
 	./switch_example.out
 	rm switch_example.out 
+ref:
+	python generator.py toy_programs/ref.schwa compiled/ref.c
+	gcc compiled/ref.c -o ref.out -lm
+	./ref.out
+	rm ref.out 

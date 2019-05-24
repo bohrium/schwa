@@ -23,7 +23,20 @@ def compare(a:float, b:float): int
     }
 };
 
-
+def compare_and_swap(a:ref float, b:ref float): int
+{
+    var issorted: int;
+    var temp: int;
+    issorted = compare(a, b);
+    if {
+        issorted!=0 ~> skip 
+        issorted==0 ~>
+            temp = a; 
+            a = b; 
+            b = temp 
+    };
+    return = issorted
+}; 
 
 //---------------------------------------------------------------------------//
 //  TRYTOSORT: here we implement function that learns to select between three//
@@ -45,33 +58,10 @@ def trytosort(a: float, b:float, c:float, d:float): float
             counter = counter+1;
             // choose based on the current list... 
             switch (a, b, c, d) {
-                // ...whether to sort (a, b) based on the learned comparator...
-                ~>  issorted = compare(a, b);
-                    if {
-                        issorted!=0 ~> skip 
-                        issorted==0 ~>
-                            temp = a; 
-                            a = b; 
-                            b = temp 
-                    }
-                // ...or to sort (b, c) based on the learned comparator...
-                ~>  issorted = compare(b, c);
-                    if {
-                        issorted!=0  ~> skip 
-                        issorted==0  ~>
-                            temp = b; 
-                            b = c; 
-                            c = temp
-                    }
-                // ...or to sort (c, d) based on the learned comparator
-                ~>  issorted = compare(c, d);
-                    if {
-                        issorted!=0  ~> skip 
-                        issorted==0  ~>
-                            temp = c; 
-                            c = d; 
-                            d = temp
-                    }
+                // ...which pair to sort (a, b) based on the learned comparator...
+                ~> issorted = compare_and_swap(a, b)
+                ~> issorted = compare_and_swap(b, c)
+                ~> issorted = compare_and_swap(c, d)
             };
     }; 
 

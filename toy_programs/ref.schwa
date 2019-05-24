@@ -1,0 +1,25 @@
+// author: samtenka
+// change: 2019-05-24
+// create: 2019-05-24
+// descrp: 
+
+def swap(i: ref int, j: ref int): int
+{
+    var temp: int;
+    temp = i;
+    i = j;
+    j = temp;
+    return = 0
+};
+
+var j: int;
+var i: int;
+var k: int;
+i = 4;
+j = 99;
+print i;
+print j;
+k = swap(i, j);
+print i;
+print j
+

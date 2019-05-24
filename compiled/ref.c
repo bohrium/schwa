@@ -18,8 +18,7 @@
 #define _2__main() _main()
 #define _2__uniform() _uniform()
 #define _2__laplace() _laplace()
-#define _2__factorial(a) _factorial((a))
-#define _2__gcd(a, b) _gcd((a), (b))
+#define _2__swap(i, j) _swap((&i), (&j))
 
 
 /*****************************************************************************/
@@ -66,8 +65,7 @@ void initialize_weights();
 int _main();
 float _uniform();
 float _laplace();
-int _factorial(int _a);
-int _gcd(int _a, int _b);
+int _swap( int* _i,  int* _j);
 
 
 
@@ -130,17 +128,16 @@ void initialize_weights()
 
 int _main()
 {
-    int _answer;
-    _answer = 3;
-    float _pi;
-    _pi = 3.1415926;
-    _answer = _2__gcd(70,120);
-    printf("answer \t %d\n", _answer);
-    _answer = _2__factorial(7);
-    printf("answer \t %d\n", _answer);
-    printf("pi \t %f\n", _pi);
-    _answer = _2__factorial(-1);
-    printf("answer \t %d\n", _answer);
+    int _j;
+    int _i;
+    int _k;
+    _i = 4;
+    _j = 99;
+    printf("i \t %d\n", _i);
+    printf("j \t %d\n", _j);
+    _k = _2__swap(_i,_j);
+    printf("i \t %d\n", _i);
+    printf("j \t %d\n", _j);
 }
 
 float _uniform()
@@ -153,29 +150,12 @@ float _laplace()
     return laplace();
 }
 
-int _factorial(int _a)
+int _swap( int* _i,  int* _j)
 {
-    if ((1<=_a)) {
-        return _a*_2__factorial(_a-1);
-    } else if ((0==_a)) {
-        return 1;
-    } else {
-        printf("FAILED ALTERNATIVE CONSTRUCT (1 <= a  etc)\n");
-        ABORT;
-    }
-}
-
-int _gcd(int _a, int _b)
-{
-    while (true) {
-        if ((_a>_b)) {
-            _a = _a-_b;
-        } else if ((_a<_b)) {
-            _b = _b-_a;
-        } else {
-            break;
-        }
-    }
-    return _a;
+    int _temp;
+    _temp = (*_i);
+    *_i = (*_j);
+    *_j = _temp;
+    return 0;
 }
 
