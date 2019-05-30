@@ -1,6 +1,26 @@
-# schwa 0.0.0
+# schwa 0.1.0
+##### developed by samuel tenka
+##### most recent feature: pass-by-reference (2019-05-24)
 
-## Bridging Specs and Implementation
+## Introduction
+Imagine programming by specifying a desired **effect** rather than a **method** to achieve that effect.
+For example, from the following code 
+
+    def check_sorted(my_array: arr int): bool
+    {
+        var i: int;
+        i = 0;
+        do {
+            i+1 < len(my_array) ~>  
+                if {
+                    my_array[i]  > my_array[i+1] ~> return = false
+                    my_array[i] <= my_array[i+1] ~> skip
+                }
+        }
+        return = true
+    }
+
+## A Construct for Bridging Specs and Implementation
 We offer an instance of **programming with holes**, wherein the programmer's job is to **sketch** a program and to
 supply a specification instead of implementation for the missing pieces.  The interpreter's job is one of structured or
 constrained optimization.  Programming-with-holes appears in a range of forms.
@@ -47,6 +67,9 @@ Inspect the source `toy_examples/dijkstra.schwa` and run `make dijkstra`.
 Inspect the source `toy_examples/switch_example.schwa` and run `make switch_example`.
 
 Inspect the source `toy_examples/compare.schwa` and run `make compare`.
+
+## Reinforcement Learning Behind the Scenes
+
 
 ## Feedback 
 

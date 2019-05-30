@@ -62,9 +62,9 @@ print answer;
 // should print 3.1415923:
 print pi;
 
-// should produce error message, aborting program:
-answer = factorial(-1);
-
-// should never be run due to previous abortion:
-print answer
+//// should produce error message, aborting program:
+//answer = factorial(-1);
+//
+//// should never be run due to previous abortion:
+//print answer
 
